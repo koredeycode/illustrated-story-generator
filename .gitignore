@@ -1,0 +1,6 @@
+node_modules/
+frontend/dist/
+books/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
