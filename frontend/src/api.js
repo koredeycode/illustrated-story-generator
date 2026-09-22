@@ -22,6 +22,6 @@ export const api = {
       body: JSON.stringify({ chapter_idx }),
     }),
   eventsUrl: (id) => `/api/story/${id}/events`,
-  exportUrl: (id) => `/api/story/${id}/export`,
+  exportUrl: (id, format = "html") => `/api/story/${id}/export?format=${format}`,
   imageUrl: (id, idx) => `/books/${id}/ch${idx}.png`,
 };

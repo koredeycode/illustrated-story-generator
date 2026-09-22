@@ -56,5 +56,23 @@ def build_chapter_messages(
 
 
 def build_image_prompt(*, image_prompt: str, hero_desc: str, art_style: str) -> str:
-    """Lock character + style onto every scene prompt for consistency."""
-    return f"{image_prompt}, featuring {hero_desc}, {style_suffix(art_style)}"
+    """Lock character + style onto every scene prompt.
+
+    Triple lock: hero named as the main subject (presence), descriptor
+    repeated (consistency), style suffix (look).
+    """
+    hero = hero_desc.strip() or "the hero"
+    return (
+        f"{image_prompt}, starring {hero} as the main subject, "
+        f"{hero} clearly visible in the foreground, "
+        f"{style_suffix(art_style)}, consistent character design: {hero}"
+    )
+
+
+def build_reference_prompt(*, hero_desc: str, art_style: str) -> str:
+    """Prompt for the one-off hero reference portrait (IP-Adapter source)."""
+    hero = hero_desc.strip() or "the hero"
+    return (
+        f"character reference portrait of {hero}, full body, centered, "
+        f"neutral plain background, {style_suffix(art_style)}"
+    )

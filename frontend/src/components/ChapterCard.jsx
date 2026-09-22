@@ -1,0 +1,99 @@
+import { useState } from "react";
+import { api } from "../api.js";
+
+function SceneStatus({ status }) {
+  if (status === "done") return null;
+  const label =
+    status === "queued"
+      ? "Queued"
+      : status === "writing"
+        ? "Writing…"
+        : status === "drawing"
+          ? "Drawing…"
+          : null;
+  return (
+    <div className="flex aspect-[3/2] w-full items-center justify-center gap-2 bg-stone-100 text-stone-500">
+      {label ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="inline-block h-2 w-2 rounded-full bg-amber-600 motion-safe:animate-pulse"
+          />
+          {label}
+        </>
+      ) : (
+        <span className="px-4 text-center">⚠️ {String(status)}</span>
+      )}
+    </div>
+  );
+}
+
+export default function ChapterCard({ bookId, chapter, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [regenError, setRegenError] = useState("");
+  const status = chapter.status;
+
+  const regen = async () => {
+    setBusy(true);
+    setRegenError("");
+    try {
+      await api.regenerate(bookId, chapter.idx);
+      onChanged(await api.getStory(bookId));
+    } catch (err) {
+      setRegenError(String(err.message || err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <article
+      aria-labelledby={`ch-${chapter.idx}-heading`}
+      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"
+    >
+      {status === "done" && chapter.image_url ? (
+        <img
+          src={chapter.image_url}
+          alt={`Chapter ${chapter.idx + 1} illustration`}
+          className="aspect-[3/2] w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <SceneStatus status={status} />
+      )}
+      <div className="space-y-3 p-5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h3 id={`ch-${chapter.idx}-heading`} className="font-display text-lg font-bold">
+            Chapter {chapter.idx + 1}
+          </h3>
+          {chapter.score != null && (
+            <span
+              aria-label={`Hero match ${Math.round(chapter.score * 100)} percent`}
+              className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900"
+            >
+              hero match {Math.round(chapter.score * 100)}%
+            </span>
+          )}
+        </div>
+        <p className="whitespace-pre-wrap font-display leading-relaxed text-stone-800">
+          {chapter.text || <em>…</em>}
+        </p>
+        {status === "done" && (
+          <button
+            onClick={regen}
+            disabled={busy}
+            aria-busy={busy}
+            className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+          >
+            {busy ? "Redrawing…" : "Redraw this picture"}
+          </button>
+        )}
+        {regenError && (
+          <p role="alert" className="text-sm text-red-700">
+            {regenError}
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
