@@ -5,6 +5,7 @@ import asyncio
 import base64
 import json
 import random
+import time
 from typing import Any
 
 try:
@@ -191,6 +192,7 @@ async def generate_reference(book_id: str) -> None:
     book = BOOKS[book_id]
     meta = book["meta"]
     emit(book_id, {"type": "reference", "status": "drawing"})
+    t0 = time.perf_counter()
     try:
         prompt = build_reference_prompt(
             hero_desc=meta["hero_desc"] or meta["hero"], art_style=meta["art_style"]
@@ -199,6 +201,7 @@ async def generate_reference(book_id: str) -> None:
         with open(book_dir(book_id) / "hero_ref.png", "wb") as f:
             f.write(png)
         book["ref_b64"] = base64.b64encode(png).decode()
+        book.setdefault("timings", {})["reference_s"] = round(time.perf_counter() - t0, 1)
         emit(book_id, {"type": "reference", "status": "done"})
     except Exception as e:  # reference is best-effort; chapters still work without it
         book["ref_b64"] = None
@@ -226,14 +229,18 @@ async def generate_chapter(book_id: str, idx: int) -> None:
     chapters[idx]["status"] = "writing"
     emit(book_id, {"type": "chapter", "idx": idx, "status": "writing"})
     try:
+        t0 = time.perf_counter()
         data = await asyncio.to_thread(chat_chapter, meta, idx, recap)
         chapters[idx].update(text=data["text"], image_prompt=data["image_prompt"])
+        chapters[idx].setdefault("timings", {})["writing_s"] = round(time.perf_counter() - t0, 1)
         if meta.get("approval"):
             await _preview_and_wait(book_id, idx, data["image_prompt"])
         else:
             chapters[idx]["status"] = "drawing"
             emit(book_id, {"type": "chapter", "idx": idx, "status": "drawing"})
+            t1 = time.perf_counter()
             png, score = await render_scene(book_id, idx, data["image_prompt"], meta["seed"] + idx)
+            chapters[idx].setdefault("timings", {})["drawing_s"] = round(time.perf_counter() - t1, 1)
             with open(book_dir(book_id) / f"ch{idx}.png", "wb") as f:
                 f.write(png)
             chapters[idx]["score"] = score
@@ -262,12 +269,15 @@ async def _preview_and_wait(book_id: str, idx: int, image_prompt: str) -> None:
 async def run_book(book_id: str) -> None:
     book = BOOKS[book_id]
     book["status"] = "running"
+    book["timings"] = {"started": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    t0 = time.perf_counter()
     emit(book_id, {"type": "book", "status": "running"})
     if not adopt_reference(book_id):
         await generate_reference(book_id)
     for idx in range(book["meta"]["chapters"]):
         await generate_chapter(book_id, idx)
     book["status"] = "complete"
+    book["timings"]["total_s"] = round(time.perf_counter() - t0, 1)
     persist(book_id)
     emit(book_id, {"type": "book", "status": "complete"})
     try:  # cover is best-effort cosmetic

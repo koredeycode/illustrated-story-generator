@@ -87,4 +87,5 @@ def public_book(book_id: str) -> dict[str, Any]:
     ]
     return {"id": book_id, "meta": book["meta"], "status": book["status"], "chapters": chapters,
             "audio": book.get("audio", {"status": "idle"}),
+            "timings": book.get("timings", {}),
             "cover_url": f"/books/{book_id}/cover.png" if (d / "cover.png").exists() else None}

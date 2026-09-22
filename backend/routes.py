@@ -6,6 +6,7 @@ import html
 import json
 import random
 import re
+import time
 import uuid
 from typing import Any
 
@@ -257,8 +258,10 @@ async def approve(book_id: str, req: ApproveSpec) -> dict[str, Any]:
     ch["status"] = "drawing"
     emit(book_id, {"type": "chapter", "idx": req.chapter_idx, "status": "drawing"})
     try:
+        t1 = time.perf_counter()
         png, score = await render_scene(
             book_id, req.chapter_idx, ch["image_prompt"], random.randint(0, 2**31 - 1))
+        ch.setdefault("timings", {})["drawing_s"] = round(time.perf_counter() - t1, 1)
         with open(book_dir(book_id) / f"ch{req.chapter_idx}.png", "wb") as f:
             f.write(png)
         ch["score"] = score

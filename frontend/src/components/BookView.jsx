@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
-import ChapterCard from "./ChapterCard.jsx";
+import ChapterCard, { fmtDuration } from "./ChapterCard.jsx";
 import Icon from "./icons.jsx";
 
 export default function BookView({ bookId, onBack, onRead }) {
@@ -148,7 +148,10 @@ export default function BookView({ bookId, onBack, onRead }) {
                 Generating… {done}/{total} scenes done
               </>
             ) : (
-              <>Complete — {total} scenes</>
+              <>
+                Complete — {total} scenes
+                {book.timings?.total_s != null && <> · {fmtDuration(book.timings.total_s)} total</>}
+              </>
             )}
           </span>
           <span className="text-stone-500">

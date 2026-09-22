@@ -2,6 +2,13 @@ import { useState } from "react";
 import { api } from "../api.js";
 import Icon from "./icons.jsx";
 
+export function fmtDuration(s) {
+  if (s == null) return null;
+  const m = Math.floor(s / 60);
+  const sec = Math.round(s % 60);
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
 function SceneStatus({ status }) {
   if (status === "done" || status === "preview") return null;
   const label =
@@ -100,7 +107,7 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
           <h3 id={`ch-${chapter.idx}-heading`} className="font-display text-lg font-bold">
             Chapter {chapter.idx + 1}
           </h3>
-          {chapter.score != null && chapter.match && (
+          {chapter.match && (
             <span
               aria-label={`Hero match ${chapter.match}, score ${Math.round(chapter.score * 100)} percent of the CLIP scale`}
               title="CLIP likeness grade: weak < good < strong (raw scores top out ~35%)"
@@ -113,6 +120,17 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
               }`}
             >
               {chapter.match} match
+            </span>
+          )}
+          {chapter.timings && (chapter.timings.writing_s != null || chapter.timings.drawing_s != null) && (
+            <span className="flex items-center gap-1 text-xs text-stone-400" title="Time spent writing and illustrating this chapter">
+              <Icon name="clock" className="h-3 w-3" />
+              {[
+                chapter.timings.writing_s != null && `wrote ${fmtDuration(chapter.timings.writing_s)}`,
+                chapter.timings.drawing_s != null && `drew ${fmtDuration(chapter.timings.drawing_s)}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           )}
           {status === "preview" && (
