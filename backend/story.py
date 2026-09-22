@@ -9,19 +9,23 @@ import time
 from typing import Any
 
 try:
+    from .agent import critique_chapter
     from .config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client, quality_preset
     from .images import build_scripts, render_image
     from .prompts import build_chapter_messages, build_image_prompt, build_reference_prompt
     from .quality import MIN_SCORE, hero_score
     from .store import BOOKS, book_dir, emit, persist
     from .storage import sync_book
+    from .templates import get_template
 except ImportError:
+    from agent import critique_chapter  # type: ignore
     from config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client, quality_preset
     from images import build_scripts, render_image
     from prompts import build_chapter_messages, build_image_prompt, build_reference_prompt
     from quality import MIN_SCORE, hero_score
     from store import BOOKS, book_dir, emit, persist
     from storage import sync_book
+    from templates import get_template  # type: ignore
 
 
 def parse_chapter_json(raw: str) -> dict[str, str]:
@@ -38,13 +42,18 @@ def parse_chapter_json(raw: str) -> dict[str, str]:
 
 def chat_chapter(meta: dict, chapter_idx: int, previous_recap: str) -> dict[str, str]:
     """Blocking Ollama call — run in a thread. Retries once on bad JSON."""
+    try:
+        guide = get_template(str(meta.get("book_type") or "picture"))["writer_hint"]
+    except Exception:
+        guide = ""
     messages = build_chapter_messages(
-        theme=meta["theme"],
+        theme=str(meta.get("theme", "")),
         hero=meta["hero"],
         chapter_idx=chapter_idx,
         total_chapters=meta["chapters"],
         previous_recap=previous_recap,
         art_style=meta["art_style"],
+        guide=guide,
     )
     last_error: Exception | None = None
     for attempt in range(2):
@@ -76,8 +85,13 @@ async def render_scene(book_id: str, idx: int, image_prompt: str, seed0: int) ->
     meta = book["meta"]
     preset = quality_preset(meta.get("quality", "balanced"))
     hero = meta["hero_desc"] or meta["hero"]
+    try:
+        art_hint = get_template(str(meta.get("book_type") or "picture"))["art_hint"]
+    except Exception:
+        art_hint = ""
+    scene_prompt = f"{image_prompt}, {art_hint}" if art_hint else image_prompt
     full_prompt = build_image_prompt(
-        image_prompt=image_prompt, hero_desc=hero, art_style=meta["art_style"],
+        image_prompt=scene_prompt, hero_desc=hero, art_style=meta["art_style"],
         lora=meta.get("lora", ""),
     )
     scripts = await asyncio.to_thread(build_scripts, book)
@@ -231,6 +245,20 @@ async def generate_chapter(book_id: str, idx: int) -> None:
     try:
         t0 = time.perf_counter()
         data = await asyncio.to_thread(chat_chapter, meta, idx, recap)
+        # M5 critic loop: editor reviews, writer revises (max 2 passes).
+        # Best-effort: critic offline-approves, never blocks the book.
+        try:
+            for _ in range(2):
+                crit = await asyncio.to_thread(critique_chapter, data["text"], meta)
+                emit(book_id, {"type": "critic", "idx": idx,
+                               "ok": crit.get("ok"), "notes": crit.get("notes", "")})
+                if crit.get("ok") or not crit.get("notes"):
+                    break
+                retry_meta = dict(meta, theme=f"{meta['theme']} (Editor note: {crit['notes']})")
+                data = await asyncio.to_thread(chat_chapter, retry_meta, idx, recap)
+        except Exception as e:
+            emit(book_id, {"type": "critic", "idx": idx, "ok": True,
+                           "notes": f"critic skipped: {type(e).__name__}"})
         chapters[idx].update(text=data["text"], image_prompt=data["image_prompt"])
         chapters[idx].setdefault("timings", {})["writing_s"] = round(time.perf_counter() - t0, 1)
         if meta.get("approval"):

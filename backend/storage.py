@@ -126,3 +126,31 @@ def download_book(book_id: str) -> bool:
     except Exception as e:
         print(f"[storage] download failed for {book_id} ({type(e).__name__})")
         return False
+
+
+def sync_project(pid: str) -> dict[str, str] | None:
+    """Upload a project's BOOK.md + project.json + messages (text only)."""
+    s3 = _client() if enabled() else None
+    if not s3:
+        return None
+    try:
+        from .config import DATA_DIR as _DD
+    except ImportError:
+        from config import DATA_DIR as _DD  # type: ignore
+    d = _DD / "_projects" / pid
+    if not d.exists():
+        return None
+    urls: dict[str, str] = {}
+    for name in ("project.json", "BOOK.md", "messages.jsonl"):
+        f = d / name
+        if not f.exists():
+            continue
+        try:
+            s3.upload_file(str(f), R2_BUCKET, f"{PREFIX}_projects/{pid}/{name}",
+                           ExtraArgs={"ContentType": "text/plain; charset=utf-8"})
+            url = file_url(f"_projects/{pid}", name)
+            urls[name] = url or f"{PREFIX}_projects/{pid}/{name}"
+        except Exception as e:
+            print(f"[storage] project upload failed for {name} ({type(e).__name__})")
+            return None
+    return urls

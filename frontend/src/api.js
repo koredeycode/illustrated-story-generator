@@ -72,4 +72,23 @@ export const api = {
       body: JSON.stringify({ layout: layout || "banner" }),
     }),
   startAudiobook: (id) => req(`/api/story/${id}/audiobook`, { method: "POST" }),
+  bookTypes: () => req("/api/book-types"),
+  listProjects: () => req("/api/projects"),
+  createProject: (title, book_type) =>
+    req("/api/projects", { method: "POST", body: JSON.stringify({ title, book_type }) }),
+  getProject: (pid) => req(`/api/projects/${pid}`),
+  getBible: (pid) => req(`/api/projects/${pid}/bible`),
+  saveBible: (pid, bible) =>
+    req(`/api/projects/${pid}/bible`, { method: "PUT", body: JSON.stringify({ bible }) }),
+  chat: (pid, message, chapter_idx, context) =>
+    req(`/api/projects/${pid}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message, chapter_idx, context: context || {} }),
+    }),
+  approvePlan: (pid, plan) =>
+    req(`/api/projects/${pid}/plan/approve`, {
+      method: "POST",
+      body: JSON.stringify({ plan: plan || null }),
+    }),
+  projectEventsUrl: (pid) => `/api/projects/${pid}/events`,
 };
