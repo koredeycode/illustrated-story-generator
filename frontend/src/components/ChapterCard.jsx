@@ -20,7 +20,7 @@ function SceneStatus({ status }) {
           ? "Drawing…"
           : null;
   return (
-    <div className="flex aspect-[3/2] w-full items-center justify-center gap-2 bg-stone-100 text-stone-500">
+    <div className="flex aspect-[3/2] w-full items-center justify-center gap-2 bg-white/5 text-zinc-500">
       {label ? (
         <>
           <span
@@ -63,7 +63,7 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
   return (
     <article
       aria-labelledby={`ch-${chapter.idx}-heading`}
-      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"
+      className="overflow-hidden rounded-2xl border border-white/10 bg-panel"
     >
       {status === "done" && chapter.image_url ? (
         <img
@@ -80,12 +80,12 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
             className="aspect-[3/2] w-full object-cover"
             loading="lazy"
           />
-          <div className="flex flex-wrap gap-2 bg-amber-50 p-3">
+          <div className="flex flex-wrap gap-2 border-t border-white/10 bg-violet-400/10 p-3">
             <button
               onClick={approve}
               disabled={busy}
               aria-busy={busy}
-              className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 text-sm font-medium text-black transition hover:bg-white disabled:opacity-50"
             >
               <Icon name="check" />
               {busy ? "Rendering…" : "Approve — full render"}
@@ -93,7 +93,7 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
             <button
               onClick={newPreview}
               disabled={busy}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
             >
               <Icon name="refresh" /> New preview
             </button>
@@ -104,7 +104,7 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
       )}
       <div className="space-y-3 p-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h3 id={`ch-${chapter.idx}-heading`} className="font-display text-lg font-bold">
+          <h3 id={`ch-${chapter.idx}-heading`} className="font-display text-lg font-bold text-white">
             Chapter {chapter.idx + 1}
           </h3>
           {chapter.match && (
@@ -113,17 +113,17 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
               title="CLIP likeness grade: weak < good < strong (raw scores top out ~35%)"
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                 chapter.match === "strong"
-                  ? "bg-green-100 text-green-900"
+                  ? "bg-green-400/20 text-green-300"
                   : chapter.match === "good"
-                    ? "bg-amber-100 text-amber-900"
-                    : "bg-stone-200 text-stone-600"
+                    ? "bg-amber-400/20 text-amber-300"
+                    : "bg-white/10 text-zinc-400"
               }`}
             >
               {chapter.match} match
             </span>
           )}
           {chapter.timings && (chapter.timings.writing_s != null || chapter.timings.drawing_s != null) && (
-            <span className="flex items-center gap-1 text-xs text-stone-400" title="Time spent writing and illustrating this chapter">
+            <span className="flex items-center gap-1 text-xs text-zinc-500" title="Time spent writing and illustrating this chapter">
               <Icon name="clock" className="h-3 w-3" />
               {[
                 chapter.timings.writing_s != null && `wrote ${fmtDuration(chapter.timings.writing_s)}`,
@@ -134,12 +134,12 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
             </span>
           )}
           {status === "preview" && (
-            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-900">
+            <span className="rounded-full bg-sky-400/20 px-2.5 py-0.5 text-xs font-medium text-sky-300">
               awaiting approval
             </span>
           )}
         </div>
-        <p className="whitespace-pre-wrap font-display leading-relaxed text-stone-800">
+        <p className="whitespace-pre-wrap font-display leading-relaxed text-zinc-300">
           {chapter.text || <em>…</em>}
         </p>
         {status === "done" && (
@@ -147,14 +147,14 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
             onClick={regen}
             disabled={busy}
             aria-busy={busy}
-            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
           >
             <Icon name="refresh" />
             {busy ? "Redrawing…" : "Redraw this picture"}
           </button>
         )}
         {regenError && (
-          <p role="alert" className="flex items-start gap-1.5 text-sm text-red-700">
+          <p role="alert" className="flex items-start gap-1.5 text-sm text-red-400">
             <Icon name="alert" /> {regenError}
           </p>
         )}

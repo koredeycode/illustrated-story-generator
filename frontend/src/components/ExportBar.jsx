@@ -2,14 +2,19 @@ import { useState } from "react";
 import { api } from "../api.js";
 import Icon from "./icons.jsx";
 
-/** M6 Export bar: web page / PDF / cover refresh / audiobook over the active book. */
+/** Dark export panel: web page / PDF / cover refresh / audiobook. */
 export default function ExportBar({ project, onChanged }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const book = project?.active;
   const audio = book?.audio || { status: "idle" };
 
-  if (!book) return null;
+  if (!book)
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-zinc-500">
+        Export — nothing generated yet.
+      </div>
+    );
 
   const run = async (kind, fn) => {
     setBusy(kind);
@@ -24,48 +29,42 @@ export default function ExportBar({ project, onChanged }) {
     }
   };
 
+  const ghost =
+    "flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 transition hover:bg-white/10 disabled:opacity-50";
+
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 ring-1 ring-stone-200" aria-label="Export">
-      <a
-        href={api.exportUrl(book.id, "html")}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
-      >
+    <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-3" aria-label="Export">
+      <a href={api.exportUrl(book.id, "html")} target="_blank" rel="noreferrer" className={ghost}>
         <Icon name="fileText" /> Web page
       </a>
       <a
         href={api.exportUrl(book.id, "pdf")}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-800"
+        className="flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 text-sm font-bold text-black transition hover:bg-white"
       >
         <Icon name="download" /> PDF book
       </a>
-      <button
-        onClick={() => run("cover", () => api.makeCover(book.id, "banner"))}
-        disabled={busy !== "" || book.status !== "complete"}
-        className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-50"
-      >
+      <button onClick={() => run("cover", () => api.makeCover(book.id, "banner"))} disabled={busy !== "" || book.status !== "complete"} className={ghost}>
         <Icon name="image" /> {busy === "cover" ? "Making cover…" : "New cover"}
       </button>
       {!(audio.status === "done" && audio.url) && (
         <button
           onClick={() => run("audio", () => api.startAudiobook(book.id))}
           disabled={busy !== "" || book.status !== "complete" || audio.status === "working"}
-          className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+          className={ghost}
         >
           <Icon name="music" />
           {audio.status === "working" ? `Narrating… ${audio.progress ?? 0}%` : busy === "audio" ? "Starting…" : "Audiobook"}
         </button>
       )}
       {audio.status === "done" && audio.url && (
-        <video controls preload="metadata" src={audio.url} className="h-10 w-56 rounded-xl bg-stone-900" aria-label="Audiobook player">
+        <video controls preload="metadata" src={audio.url} className="h-10 w-full rounded-xl bg-black" aria-label="Audiobook player">
           {audio.captions && <track kind="captions" src={audio.captions} srcLang="en" label="English" default />}
         </video>
       )}
       {error && (
-        <p role="alert" className="w-full text-xs text-red-700">
+        <p role="alert" className="text-xs text-red-400">
           {error}
         </p>
       )}
