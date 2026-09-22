@@ -20,7 +20,7 @@ try:
     from .prompts import STYLE_SUFFIXES
     from .store import BOOKS, book_dir, emit, ensure_book, persist, public_book
     from .storage import download_book, enabled as storage_enabled, list_remote
-    from .story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book
+    from .story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book, suggest
     from .audiobook import available as audio_available, build_audiobook
 except ImportError:
     from config import DATA_DIR, FORGE_URL, OLLAMA_URL, QUALITY_PRESETS
@@ -28,7 +28,7 @@ except ImportError:
     from prompts import STYLE_SUFFIXES
     from store import BOOKS, book_dir, emit, ensure_book, persist, public_book
     from storage import download_book, enabled as storage_enabled, list_remote
-    from story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book
+    from story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book, suggest
     from audiobook import available as audio_available, build_audiobook
 
 router = APIRouter()
@@ -71,6 +71,11 @@ class ApproveSpec(BaseModel):
 
 class CoverSpec(BaseModel):
     layout: str = "banner"
+
+
+class SuggestSpec(BaseModel):
+    kind: str = Field(pattern="^(theme|hero|look|dedication)$")
+    context: dict[str, Any] = {}
 
 
 async def _probe(url: str) -> str:
@@ -132,12 +137,33 @@ async def create_story(spec: StoryCreate) -> dict[str, Any]:
     return {"id": book_id, "status": "running"}
 
 
+@router.post("/api/suggest")
+async def suggest_ideas(spec: SuggestSpec) -> dict[str, Any]:
+    """LLM-generated wizard suggestions (themes, names, looks, dedications)."""
+    try:
+        items = await asyncio.to_thread(suggest, spec.kind, spec.context)
+    except Exception as e:
+        raise HTTPException(502, f"suggest failed: {type(e).__name__}: {e}")
+    return {"suggestions": items}
+
+
 @router.get("/api/books")
 def list_books() -> dict[str, Any]:
-    """Library: local books merged with remote (R2) ones."""
+    """Library: local books merged with remote (R2) ones, with title metadata."""
     local = {d.name for d in DATA_DIR.iterdir() if (d / "book.json").exists()} if DATA_DIR.exists() else set()
     remote = set(list_remote())
-    items = [{"id": i, "local": i in local, "remote": i in remote}
+
+    def _meta(book_id: str) -> dict[str, Any] | None:
+        try:
+            saved = json.loads((DATA_DIR / book_id / "book.json").read_text())
+            m = saved.get("meta", {})
+            return {"hero": m.get("hero", book_id), "theme": m.get("theme", ""),
+                    "chapters": len(saved.get("chapters", []))}
+        except Exception:
+            return None
+
+    items = [{"id": i, "local": i in local, "remote": i in remote,
+              "meta": _meta(i) if i in local else None}
              for i in sorted(local | remote)]
     return {"books": items, "storage": "r2" if storage_enabled() else "local"}
 

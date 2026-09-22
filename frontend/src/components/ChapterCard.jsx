@@ -100,12 +100,19 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
           <h3 id={`ch-${chapter.idx}-heading`} className="font-display text-lg font-bold">
             Chapter {chapter.idx + 1}
           </h3>
-          {chapter.score != null && (
+          {chapter.score != null && chapter.match && (
             <span
-              aria-label={`Hero match ${Math.round(chapter.score * 100)} percent`}
-              className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900"
+              aria-label={`Hero match ${chapter.match}, score ${Math.round(chapter.score * 100)} percent of the CLIP scale`}
+              title="CLIP likeness grade: weak < good < strong (raw scores top out ~35%)"
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                chapter.match === "strong"
+                  ? "bg-green-100 text-green-900"
+                  : chapter.match === "good"
+                    ? "bg-amber-100 text-amber-900"
+                    : "bg-stone-200 text-stone-600"
+              }`}
             >
-              hero match {Math.round(chapter.score * 100)}%
+              {chapter.match} match
             </span>
           )}
           {status === "preview" && (

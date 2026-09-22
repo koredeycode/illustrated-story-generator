@@ -140,6 +140,52 @@ def adopt_reference(book_id: str) -> bool:
         return False
 
 
+def suggest(kind: str, context: dict[str, Any]) -> list[str]:
+    """Blocking: ask the LLM for short suggestions (wizard chips). Always returns a list."""
+    prompts = {
+        "theme": "Suggest 4 original premises for a children's picture book, one sentence each.",
+        "hero": f"Suggest 4 memorable hero names for a children's book about: {context.get('theme', 'an adventure')}. Names only.",
+        "look": (
+            f"Suggest 4 one-sentence visual descriptions for a children's book hero "
+            f"named {context.get('hero', 'the hero')} in a story about: {context.get('theme', 'an adventure')}. "
+            "Concrete shape and color words a picture-book artist can draw."
+        ),
+        "dedication": (
+            f"Suggest 4 short warm book dedications (under 10 words each) "
+            f"for a children's book starring {context.get('hero', 'the hero')}."
+        ),
+    }
+    if kind not in prompts:
+        raise ValueError(f"unknown suggestion kind: {kind}")
+    r = client.post(
+        f"{OLLAMA_URL}/v1/chat/completions",
+        json={
+            "model": LLM_MODEL,
+            "temperature": 0.9,
+            "messages": [
+                {"role": "system", "content": "Reply with a JSON array of exactly 4 short strings and nothing else."},
+                {"role": "user", "content": prompts[kind]},
+            ],
+        },
+    )
+    r.raise_for_status()
+    raw = r.json()["choices"][0]["message"]["content"].strip()
+    try:
+        if raw.startswith("```"):
+            raw = raw.strip("`").strip()
+            if raw.lower().startswith("json"):
+                raw = raw[4:].strip()
+        items = json.loads(raw)
+        if isinstance(items, list):
+            return [str(x).strip()[:140] for x in items if str(x).strip()][:4]
+    except (ValueError, KeyError, AttributeError):
+        pass
+    import re as _re
+
+    lines = [_re.sub(r"^[\-\*\d\.\)\s]+", "", l).strip().strip('"') for l in raw.splitlines()]
+    return [l[:140] for l in lines if len(l) > 2][:4]
+
+
 async def generate_reference(book_id: str) -> None:
     """Render the one-off hero portrait used as the IP-Adapter reference."""
     book = BOOKS[book_id]

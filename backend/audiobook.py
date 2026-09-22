@@ -43,9 +43,10 @@ async def _narrate(text: str, out: Path) -> None:
     await edge_tts.Communicate(text, VOICE).save(str(out))
 
 
-def _segment(image: Path, audio: Path, out: Path) -> None:
+def _segment(image: Path, audio: Path, out: Path, duration: float) -> None:
     _run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(image),
-          "-i", str(audio), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+          "-i", str(audio), "-t", str(duration),
+          "-c:v", "libx264", "-pix_fmt", "yuv420p",
           "-c:a", "aac", "-shortest", str(out)])
 
 
@@ -119,7 +120,7 @@ async def build_audiobook(book_id: str) -> None:
         if not voiced:
             raise RuntimeError("no chapter text to narrate")
         segments = []
-        cue_src: list[tuple[int, str, Path]] = []
+        cue_src: list[tuple[int, str, float]] = []
         for n, (idx, text) in enumerate(voiced):
             img = d / f"ch{idx}.png"
             if not img.exists():
@@ -128,10 +129,13 @@ async def build_audiobook(book_id: str) -> None:
             mp3 = work / f"ch{idx}-{digest}.mp3"
             if not mp3.exists():
                 await _narrate(text, mp3)
+            # Segment length AND cue boundaries both come from the narration
+            # track, so captions agree with the audio by construction.
+            dur = await asyncio.to_thread(_duration, mp3)
             seg = work / f"seg{idx}.mp4"
-            await asyncio.to_thread(_segment, img, mp3, seg)
+            await asyncio.to_thread(_segment, img, mp3, seg, dur)
             segments.append(seg)
-            cue_src.append((idx, text, seg))
+            cue_src.append((idx, text, dur))
             progress = round((n + 1) / len(voiced) * 100)
             book["audio"] = {"status": "working", "progress": progress}
             emit(book_id, {"type": "audiobook", "status": "working", "progress": progress})
@@ -140,9 +144,8 @@ async def build_audiobook(book_id: str) -> None:
         await asyncio.to_thread(_concat, segments, d / "audiobook.mp4", work)
         cues = []
         cursor = 0.0
-        for idx, text, seg in cue_src:
-            dur = await asyncio.to_thread(_duration, seg)
-            head = min(1.5, dur * 0.15)
+        for idx, text, dur in cue_src:
+            head = min(1.0, dur * 0.1)
             cues.append((cursor, cursor + head, f"Chapter {idx + 1}"))
             rest = dur - head
             sents = _sentences(text)
@@ -151,7 +154,9 @@ async def build_audiobook(book_id: str) -> None:
             t = cursor + head
             for s, w in zip(sents, weights):
                 span = rest * w / total_w if total_w else 0
-                cues.append((t, t + span, s))
+                # Lead each cue slightly so text lands with (not after) the words.
+                begin = max(t - 0.15, cursor)
+                cues.append((begin, t + span, s))
                 t += span
             cursor += dur
         await asyncio.to_thread(_write_vtt, cues, d / "audiobook.vtt")

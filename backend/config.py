@@ -11,12 +11,12 @@ IP_WEIGHT = float(os.environ.get("IP_ADAPTER_WEIGHT", "0.7"))
 
 # Rendering defaults (overridden per-book by the quality preset).
 CFG = float(os.environ.get("RENDER_CFG", "7"))
-SAMPLER = os.environ.get("RENDER_SAMPLER", "DPM++ 2M Karras")
+SAMPLER = os.environ.get("RENDER_SAMPLER", "DPM++ 2M")
 
 QUALITY_PRESETS = {
     "draft": {"steps": 20, "rerolls": 1, "gate": 0.20},
-    "balanced": {"steps": 32, "rerolls": 2, "gate": 0.25},
-    "best": {"steps": 40, "rerolls": 3, "gate": 0.27},
+    "balanced": {"steps": 32, "rerolls": 2, "gate": 0.26},
+    "best": {"steps": 40, "rerolls": 3, "gate": 0.28},
 }
 
 

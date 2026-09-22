@@ -80,6 +80,7 @@ export default function BookView({ bookId, onBack, onRead }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      {/* top bar: back + primary action */}
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={onBack}
@@ -87,46 +88,54 @@ export default function BookView({ bookId, onBack, onRead }) {
         >
           <Icon name="arrowLeft" /> Library
         </button>
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            onClick={() => onRead(bookId)}
-            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-stone-700"
-          >
-            <Icon name="book" /> Read
-          </button>
-          <a
-            href={api.exportUrl(bookId, "html")}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-100"
-          >
-            <Icon name="fileText" /> Web page
-          </a>
-          <a
-            href={api.exportUrl(bookId, "pdf")}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-800"
-          >
-            <Icon name="download" /> PDF book
-          </a>
-        </div>
-      </div>
-      <div>
-        <h2
-          ref={headingRef}
-          tabIndex={-1}
-          className="font-display text-3xl font-black focus:outline-none"
+        <button
+          onClick={() => onRead(bookId)}
+          disabled={running}
+          className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700 disabled:opacity-40"
         >
-          {book.meta.hero}
-        </h2>
-        <p className="mt-1 text-stone-500">{book.meta.theme}</p>
+          <Icon name="book" /> {running ? "Read so far" : "Read"}
+        </button>
       </div>
-      {book.cover_url && (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
-          <img src={book.cover_url} alt={`${book.meta.hero} book cover`} className="aspect-square w-full object-cover" />
+
+      {/* hero: cover art + title block */}
+      {book.cover_url ? (
+        <div className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-stone-200">
+          <img src={book.cover_url} alt={`${book.meta.hero} book cover`} className="aspect-square w-full object-cover sm:aspect-[16/10]" />
+          <div className="bg-stone-900 px-5 py-4 text-white">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="font-display text-2xl font-black focus:outline-none"
+            >
+              {book.meta.hero}
+            </h2>
+            <p className="mt-0.5 text-sm text-stone-300">{book.meta.theme}</p>
+            {book.meta.dedication && (
+              <p className="mt-1 font-display text-sm italic text-amber-200">
+                {book.meta.dedication}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-3xl font-black focus:outline-none"
+          >
+            {book.meta.hero}
+          </h2>
+          <p className="mt-1 text-stone-500">{book.meta.theme}</p>
+          {book.meta.dedication && (
+            <p className="mt-1 font-display text-sm italic text-stone-500">
+              {book.meta.dedication}
+            </p>
+          )}
         </div>
       )}
+
+      {/* progress */}
       <div
         role="status"
         aria-live="polite"
@@ -142,7 +151,10 @@ export default function BookView({ bookId, onBack, onRead }) {
               <>Complete — {total} scenes</>
             )}
           </span>
-          <span className="text-stone-500">{book.meta.art_style}</span>
+          <span className="text-stone-500">
+            {book.meta.art_style}
+            {book.meta.lora ? ` + ${book.meta.lora}` : ""}
+          </span>
         </div>
         <div
           role="progressbar"
@@ -162,7 +174,20 @@ export default function BookView({ bookId, onBack, onRead }) {
             Keep this tab open — pictures arrive as they finish.
           </p>
         )}
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-stone-100 pt-3">
+      </div>
+
+      {/* chapters */}
+      {book.chapters.map((c) => (
+        <ChapterCard key={c.idx} bookId={bookId} chapter={c} onChanged={setBook} />
+      ))}
+
+      {/* finishing touches */}
+      <section
+        aria-label="Finishing touches"
+        className="space-y-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200"
+      >
+        <h3 className="font-display text-lg font-bold">Finishing touches</h3>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={newCover}
             disabled={coverBusy || running}
@@ -171,21 +196,7 @@ export default function BookView({ bookId, onBack, onRead }) {
             <Icon name="image" />
             {coverBusy ? "Making cover…" : book.cover_url ? "New cover" : "Make cover"}
           </button>
-          {audio.status === "done" && audio.url ? (
-            <div className="w-full">
-              <video
-                controls
-                preload="metadata"
-                src={audio.url}
-                className="w-full rounded-xl bg-stone-900"
-                aria-label="Audiobook player with captions"
-              >
-                {audio.captions && (
-                  <track kind="captions" src={audio.captions} srcLang="en" label="English" default />
-                )}
-              </video>
-            </div>
-          ) : (
+          {!(audio.status === "done" && audio.url) && (
             <button
               onClick={makeAudio}
               disabled={audioBusy || running || audio.status === "working"}
@@ -199,21 +210,47 @@ export default function BookView({ bookId, onBack, onRead }) {
                   : "Make audiobook"}
             </button>
           )}
+          <a
+            href={api.exportUrl(bookId, "html")}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-100"
+          >
+            <Icon name="fileText" /> Web page
+          </a>
+          <a
+            href={api.exportUrl(bookId, "pdf")}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-800"
+          >
+            <Icon name="download" /> PDF book
+          </a>
         </div>
         {actionError && (
-          <p role="alert" className="mt-2 flex items-start gap-1.5 text-xs text-red-700">
+          <p role="alert" className="flex items-start gap-1.5 text-xs text-red-700">
             <Icon name="alert" /> {actionError}
           </p>
         )}
         {String(audio.status).startsWith("error") && (
-          <p role="alert" className="mt-2 text-xs text-red-700">
+          <p role="alert" className="text-xs text-red-700">
             {audio.status}
           </p>
         )}
-      </div>
-      {book.chapters.map((c) => (
-        <ChapterCard key={c.idx} bookId={bookId} chapter={c} onChanged={setBook} />
-      ))}
+        {audio.status === "done" && audio.url && (
+          <video
+            controls
+            preload="metadata"
+            src={audio.url}
+            className="w-full rounded-xl bg-stone-900"
+            aria-label="Audiobook player with captions"
+          >
+            {audio.captions && (
+              <track kind="captions" src={audio.captions} srcLang="en" label="English" default />
+            )}
+          </video>
+        )}
+      </section>
     </div>
   );
 }

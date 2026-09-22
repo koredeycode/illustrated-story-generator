@@ -64,13 +64,25 @@ def ensure_book(book_id: str) -> dict[str, Any]:
     return book
 
 
+def match_label(score: float | None) -> str | None:
+    """Human-readable CLIP band. Raw cosine tops out ~0.35, so grade on that curve."""
+    if score is None:
+        return None
+    if score >= 0.30:
+        return "strong"
+    if score >= 0.24:
+        return "good"
+    return "weak"
+
+
 def public_book(book_id: str) -> dict[str, Any]:
     book = BOOKS[book_id]
     d = book_dir(book_id)
     chapters = [
         {**c,
          "image_url": f"/books/{book_id}/ch{c['idx']}.png" if (d / f"ch{c['idx']}.png").exists() else None,
-         "preview_url": f"/books/{book_id}/pv{c['idx']}.png" if (d / f"pv{c['idx']}.png").exists() else None}
+         "preview_url": f"/books/{book_id}/pv{c['idx']}.png" if (d / f"pv{c['idx']}.png").exists() else None,
+         "match": match_label(c.get("score"))}
         for c in book["chapters"]
     ]
     return {"id": book_id, "meta": book["meta"], "status": book["status"], "chapters": chapters,

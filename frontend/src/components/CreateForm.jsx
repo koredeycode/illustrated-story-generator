@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import Icon from "./icons.jsx";
+import SuggestRow from "./SuggestRow.jsx";
 
 const fieldInput =
   "w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink shadow-sm " +
@@ -164,26 +165,7 @@ export default function CreateForm({ onCreated }) {
                 placeholder="A little robot who is afraid of the dark…"
               />
             </label>
-            <div>
-              <p className="mb-2 text-xs text-stone-500">Or start from an idea:</p>
-              <div className="flex flex-wrap gap-2">
-                {THEME_IDEAS.map((idea) => (
-                  <button
-                    key={idea}
-                    type="button"
-                    onClick={() => setTheme(idea)}
-                    aria-pressed={theme === idea}
-                    className={`rounded-full border px-3 py-1 text-xs transition ${
-                      theme === idea
-                        ? "border-amber-700 bg-amber-50 font-medium text-amber-900"
-                        : "border-stone-300 text-stone-600 hover:bg-stone-100"
-                    }`}
-                  >
-                    {idea}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SuggestRow kind="theme" context={{}} onPick={setTheme} label="Or start from an AI idea:" />
           </div>
         )}
 
@@ -198,6 +180,9 @@ export default function CreateForm({ onCreated }) {
                 required
                 placeholder="Bolt"
               />
+              <span className="mt-2 block">
+                <SuggestRow kind="hero" context={{ theme }} onPick={setHero} label="Need a name?" />
+              </span>
             </label>
             <label className="block">
               <span className="mb-1 block text-sm font-medium">
@@ -213,29 +198,10 @@ export default function CreateForm({ onCreated }) {
               <span id="hero-desc-hint" className="mt-1 block text-xs text-stone-500">
                 This locks onto every illustration — be specific about shape and color.
               </span>
+              <span className="mt-2 block">
+                <SuggestRow kind="look" context={{ hero, theme }} onPick={setHeroDesc} label="Describe it for me:" />
+              </span>
             </label>
-            <div className="flex flex-wrap gap-2">
-              {LOOK_IDEAS.map((idea) => (
-                <button
-                  key={idea}
-                  type="button"
-                  onClick={() => {
-                    setHeroDesc(idea);
-                    if (!hero || hero === "Bolt")
-                      setHero(
-                        idea.includes("robot")
-                          ? "Bolt"
-                          : idea.includes("cat")
-                            ? "Captain Whiskers"
-                            : "Ember"
-                      );
-                  }}
-                  className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 transition hover:bg-stone-100"
-                >
-                  {idea}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -330,6 +296,9 @@ export default function CreateForm({ onCreated }) {
                 onChange={(e) => setDedication(e.target.value)}
                 placeholder="For Ada, love Dad"
               />
+              <span className="mt-2 block">
+                <SuggestRow kind="dedication" context={{ hero }} onPick={setDedication} label="Word it for me:" />
+              </span>
             </details>
             <label className="flex items-start gap-2 text-sm">
               <input

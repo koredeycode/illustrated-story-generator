@@ -53,6 +53,8 @@ export const api = {
   fetchBook: (id) => req(`/api/books/${id}/fetch`, { method: "POST" }),
   referenceOptions: (spec) =>
     req("/api/reference", { method: "POST", body: JSON.stringify(spec) }),
+  suggest: (kind, context) =>
+    req("/api/suggest", { method: "POST", body: JSON.stringify({ kind, context }) }),
   loras: () => req("/api/loras"),
   previewChapter: (id, chapter_idx, seed) =>
     req(`/api/story/${id}/preview`, {
