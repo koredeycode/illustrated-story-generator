@@ -99,6 +99,7 @@ const PATHS = {
     </>
   ),
   play: <path d="M6 4l14 8-14 8z" />,
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
   arrowUp: (
     <>
       <path d="M12 19V5" />

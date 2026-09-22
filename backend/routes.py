@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 try:
@@ -23,6 +23,7 @@ try:
     from .storage import download_book, enabled as storage_enabled, list_remote
     from .story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book, suggest
     from .audiobook import available as audio_available, build_audiobook
+    from .audiobook import VOICE as DEFAULT_VOICE
     from .templates import list_book_types
     from .templates import BOOK_TYPES as _BT
     from .projects import (append_message, create_project, emit_project, ensure_project,
@@ -37,6 +38,7 @@ except ImportError:
     from storage import download_book, enabled as storage_enabled, list_remote
     from story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book, suggest
     from audiobook import available as audio_available, build_audiobook
+    from audiobook import VOICE as DEFAULT_VOICE  # type: ignore
     from templates import list_book_types
     from templates import BOOK_TYPES as _BT  # type: ignore
     from projects import (append_message, create_project, emit_project, ensure_project,
@@ -291,8 +293,53 @@ async def approve(book_id: str, req: ApproveSpec) -> dict[str, Any]:
     return {"idx": req.chapter_idx, "status": ch["status"]}
 
 
+@router.get("/api/voices")
+async def list_voices() -> dict[str, Any]:
+    """Narration voices from edge-tts (English first). 502 when unreachable."""
+    try:
+        import edge_tts
+
+        raw = await edge_tts.list_voices()
+    except Exception as e:
+        raise HTTPException(502, f"voice list unavailable: {type(e).__name__}: {str(e)[:160]}")
+    out = [{"id": v.get("ShortName", ""), "locale": v.get("Locale", ""),
+            "gender": v.get("Gender", "")}
+           for v in raw if v.get("ShortName")]
+    out.sort(key=lambda v: (not v["locale"].lower().startswith("en"), v["locale"], v["id"]))
+    return {"voices": out, "default": DEFAULT_VOICE}
+
+
+VOICE_ID_RE = r"[A-Za-z]{2}-[A-Za-z]{2}-[A-Za-z]+"
+PREVIEW_TEXT = "Hello! I'll be narrating your storybook, one magical page at a time."
+
+
+@router.get("/api/voices/preview")
+async def preview_voice(voice: str = "") -> FileResponse:
+    """Short MP3 sample of a narration voice (cached per voice id)."""
+    if not re.fullmatch(VOICE_ID_RE, voice or ""):
+        raise HTTPException(400, f"invalid voice id: {(voice or '')[:40]}")
+    try:
+        from .audiobook import _narrate
+    except ImportError:
+        from audiobook import _narrate  # type: ignore
+    d = DATA_DIR / "_voices"
+    d.mkdir(parents=True, exist_ok=True)
+    sample = d / f"{voice}.mp3"
+    if not sample.exists():
+        try:
+            await _narrate(PREVIEW_TEXT, sample, voice)
+        except Exception as e:
+            raise HTTPException(502, f"voice preview failed: {type(e).__name__}: {str(e)[:160]}")
+    return FileResponse(str(sample), media_type="audio/mpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+class AudioSpec(BaseModel):
+    voice: str = Field(default="", max_length=40)
+
+
 @router.post("/api/story/{book_id}/audiobook")
-async def start_audiobook(book_id: str) -> dict[str, Any]:
+async def start_audiobook(book_id: str, spec: AudioSpec | None = None) -> dict[str, Any]:
     """Kick off MP4 audiobook rendering (background job, progress via SSE)."""
     book = ensure_book(book_id)
     if book.get("audio", {}).get("status") == "working":
@@ -300,9 +347,12 @@ async def start_audiobook(book_id: str) -> dict[str, Any]:
     ok, why = await asyncio.to_thread(audio_available)
     if not ok:
         raise HTTPException(500, f"audiobook unavailable: {why}")
-    book["audio"] = {"status": "working", "progress": 0}
+    voice = (spec.voice if spec else "") or DEFAULT_VOICE
+    if not re.fullmatch(VOICE_ID_RE, voice):
+        raise HTTPException(400, f"invalid voice id: {voice[:40]}")
+    book["audio"] = {"status": "working", "progress": 0, "voice": voice}
     asyncio.create_task(build_audiobook(book_id))
-    return {"status": "working"}
+    return {"status": "working", "voice": voice}
 
 
 @router.get("/api/story/{book_id}/audiobook")

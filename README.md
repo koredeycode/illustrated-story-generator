@@ -65,7 +65,7 @@ npm --prefix frontend run dev   # http://localhost:5173
 | Agent | `POST /api/projects` · `GET /api/projects` · `GET /api/projects/{pid}` · `POST /api/projects/{pid}/chat` · `POST /api/projects/{pid}/plan/approve` · `GET /api/projects/{pid}/events` (SSE) |
 | Bible | `GET/PUT /api/projects/{pid}/bible` |
 | Books (classic, per version) | `GET /api/story/{id}` · `GET /api/story/{id}/events` (SSE) · `POST .../regenerate` · `POST .../preview` · `POST .../approve` · `POST .../cover` · `POST .../audiobook` · `GET .../export?format=html\|pdf` |
-| Misc | `GET /api/health` · `GET /api/book-types` · `GET /api/styles` · `GET /api/loras` · `POST /api/suggest` · `POST /api/reference` · `GET /api/books` |
+| Misc | `GET /api/health` · `GET /api/book-types` · `GET /api/styles` · `GET /api/loras` · `GET /api/voices` · `GET /api/voices/preview?voice=…` · `POST /api/suggest` · `POST /api/reference` · `GET /api/books` |
 
 ## Repo layout
 

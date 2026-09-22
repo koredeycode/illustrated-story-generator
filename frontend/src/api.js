@@ -71,7 +71,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ layout: layout || "banner" }),
     }),
-  startAudiobook: (id) => req(`/api/story/${id}/audiobook`, { method: "POST" }),
+  startAudiobook: (id, voice) =>
+    req(`/api/story/${id}/audiobook`, {
+      method: "POST",
+      body: JSON.stringify({ voice: voice || "" }),
+    }),
+  voices: () => req("/api/voices"),
   bookTypes: () => req("/api/book-types"),
   listProjects: () => req("/api/projects"),
   createProject: (title, book_type) =>

@@ -37,10 +37,10 @@ def _run(cmd: list[str]) -> None:
         raise RuntimeError((p.stderr or p.stdout)[-500:])
 
 
-async def _narrate(text: str, out: Path) -> None:
+async def _narrate(text: str, out: Path, voice: str) -> None:
     import edge_tts
 
-    await edge_tts.Communicate(text, VOICE).save(str(out))
+    await edge_tts.Communicate(text, voice or VOICE).save(str(out))
 
 
 def _segment(image: Path, audio: Path, out: Path, duration: float) -> None:
@@ -107,7 +107,8 @@ def _concat(parts: list[Path], out: Path, workdir: Path) -> None:
 async def build_audiobook(book_id: str) -> None:
     """Background job: narrate chapters with text, stitch into audiobook.mp4."""
     book = BOOKS[book_id]
-    book["audio"] = {"status": "working", "progress": 0}
+    voice = (book.get("audio") or {}).get("voice") or VOICE
+    book["audio"] = {"status": "working", "progress": 0, "voice": voice}
     emit(book_id, {"type": "audiobook", "status": "working", "progress": 0})
     try:
         ok, why = await asyncio.to_thread(available)
@@ -125,10 +126,10 @@ async def build_audiobook(book_id: str) -> None:
             img = d / f"ch{idx}.png"
             if not img.exists():
                 continue
-            digest = hashlib.sha256(f"{VOICE}:{text}".encode()).hexdigest()[:16]
+            digest = hashlib.sha256(f"{voice}:{text}".encode()).hexdigest()[:16]
             mp3 = work / f"ch{idx}-{digest}.mp3"
             if not mp3.exists():
-                await _narrate(text, mp3)
+                await _narrate(text, mp3, voice)
             # Segment length AND cue boundaries both come from the narration
             # track, so captions agree with the audio by construction.
             dur = await asyncio.to_thread(_duration, mp3)
@@ -161,7 +162,7 @@ async def build_audiobook(book_id: str) -> None:
             cursor += dur
         await asyncio.to_thread(_write_vtt, cues, d / "audiobook.vtt")
         book["audio"] = {"status": "done", "url": f"/books/{book_id}/audiobook.mp4",
-                         "captions": f"/books/{book_id}/audiobook.vtt"}
+                         "captions": f"/books/{book_id}/audiobook.vtt", "voice": voice}
         emit(book_id, {"type": "audiobook", "status": "done"})
     except Exception as e:
         book["audio"] = {"status": f"error: {type(e).__name__}: {str(e)[:200]}"}
