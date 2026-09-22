@@ -1,5 +1,7 @@
 """Prompt builders for the story writer (Ollama) and illustrator (Forge)."""
 
+import re
+
 NEGATIVE_PROMPT = (
     "blurry, low quality, distorted, deformed, watermark, text, words, "
     "letters, signature, extra limbs, scary, horror"
@@ -55,18 +57,23 @@ def build_chapter_messages(
     ]
 
 
-def build_image_prompt(*, image_prompt: str, hero_desc: str, art_style: str) -> str:
+def build_image_prompt(*, image_prompt: str, hero_desc: str, art_style: str, lora: str = "") -> str:
     """Lock character + style onto every scene prompt.
 
     Triple lock: hero named as the main subject (presence), descriptor
-    repeated (consistency), style suffix (look).
+    repeated (consistency), style suffix (look). Optional SD1.5 LoRA
+    trigger appended (<lora:name:0.8>); names are sanitized.
     """
     hero = hero_desc.strip() or "the hero"
-    return (
+    prompt = (
         f"{image_prompt}, starring {hero} as the main subject, "
         f"{hero} clearly visible in the foreground, "
         f"{style_suffix(art_style)}, consistent character design: {hero}"
     )
+    name = (lora or "").strip()
+    if name and re.fullmatch(r"[A-Za-z0-9 _.\-]+", name):
+        prompt += f", <lora:{name}:0.8>"
+    return prompt
 
 
 def build_reference_prompt(*, hero_desc: str, art_style: str) -> str:

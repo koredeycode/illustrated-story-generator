@@ -52,6 +52,8 @@ def ensure_book(book_id: str) -> dict[str, Any]:
             "meta": saved["meta"],
             "chapters": saved["chapters"],
             "status": "complete",
+            "remote": None,
+            "audio": {"status": "idle"},
             "subscribers": [],
         }
         ref_path = DATA_DIR / book_id / "hero_ref.png"
@@ -66,7 +68,11 @@ def public_book(book_id: str) -> dict[str, Any]:
     book = BOOKS[book_id]
     d = book_dir(book_id)
     chapters = [
-        {**c, "image_url": f"/books/{book_id}/ch{c['idx']}.png" if (d / f"ch{c['idx']}.png").exists() else None}
+        {**c,
+         "image_url": f"/books/{book_id}/ch{c['idx']}.png" if (d / f"ch{c['idx']}.png").exists() else None,
+         "preview_url": f"/books/{book_id}/pv{c['idx']}.png" if (d / f"pv{c['idx']}.png").exists() else None}
         for c in book["chapters"]
     ]
-    return {"id": book_id, "meta": book["meta"], "status": book["status"], "chapters": chapters}
+    return {"id": book_id, "meta": book["meta"], "status": book["status"], "chapters": chapters,
+            "audio": book.get("audio", {"status": "idle"}),
+            "cover_url": f"/books/{book_id}/cover.png" if (d / "cover.png").exists() else None}

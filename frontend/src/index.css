@@ -23,3 +23,35 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes page-in-right {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) rotateY(-14deg) translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes page-in-left {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) rotateY(14deg) translateX(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-turn-right {
+  animation: page-in-right 0.45s ease;
+  transform-origin: left center;
+}
+
+.page-turn-left {
+  animation: page-in-left 0.45s ease;
+  transform-origin: right center;
+}

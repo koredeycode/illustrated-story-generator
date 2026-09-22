@@ -93,15 +93,35 @@ def render_pdf(book_id: str) -> bytes:
                                textColor=INK, alignment=TA_CENTER)
 
     story: list = []
-    story.append(Spacer(1, 2.0 * inch))
+    story.append(Spacer(1, 1.2 * inch))
     story.append(Paragraph(html.escape(meta["hero"]), title_style))
     story.append(Paragraph(html.escape(meta["theme"]), theme_style))
+    cover_path = book_dir(book_id) / "cover.png"
+    if cover_path.exists():
+        try:
+            from PIL import Image as PILImage
+
+            w, h = PILImage.open(cover_path).size
+            scale = min(5.2 * inch / w, 3.0 * inch / h)
+            cover = RLImage(str(cover_path), width=w * scale, height=h * scale)
+            cover.hAlign = "CENTER"
+            story.append(cover)
+            story.append(Spacer(1, 0.2 * inch))
+        except Exception:
+            pass
     story.append(HRFlowable(width="30%", thickness=1, color=ACCENT, spaceAfter=18,
                             spaceBefore=6, hAlign="CENTER", vAlign="BOTTOM"))
     story.append(Paragraph(
         f"An illustrated story  •  {html.escape(meta['art_style'])}  •  {date.today().isoformat()}",
         meta_style))
     story.append(PageBreak())
+
+    if (meta.get("dedication") or "").strip():
+        dedicate_style = ParagraphStyle("dedicate", fontName=fonts["italic"], fontSize=16,
+                                        leading=24, textColor=INK, alignment=TA_CENTER)
+        story.append(Spacer(1, 3.0 * inch))
+        story.append(Paragraph(html.escape(meta["dedication"].strip()), dedicate_style))
+        story.append(PageBreak())
 
     img_dir = book_dir(book_id)
     max_w, max_h = PAGE[0] - 2 * MARGIN, 2.8 * inch

@@ -24,4 +24,28 @@ export const api = {
   eventsUrl: (id) => `/api/story/${id}/events`,
   exportUrl: (id, format = "html") => `/api/story/${id}/export?format=${format}`,
   imageUrl: (id, idx) => `/books/${id}/ch${idx}.png`,
+  previewUrl: (id, idx) => `/books/${id}/pv${idx}.png`,
+  coverUrl: (id) => `/books/${id}/cover.png`,
+  audioFileUrl: (id) => `/books/${id}/audiobook.mp4`,
+  listBooks: () => req("/api/books"),
+  fetchBook: (id) => req(`/api/books/${id}/fetch`, { method: "POST" }),
+  referenceOptions: (spec) =>
+    req("/api/reference", { method: "POST", body: JSON.stringify(spec) }),
+  loras: () => req("/api/loras"),
+  previewChapter: (id, chapter_idx, seed) =>
+    req(`/api/story/${id}/preview`, {
+      method: "POST",
+      body: JSON.stringify({ chapter_idx, seed }),
+    }),
+  approveChapter: (id, chapter_idx) =>
+    req(`/api/story/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ chapter_idx }),
+    }),
+  makeCover: (id, layout) =>
+    req(`/api/story/${id}/cover`, {
+      method: "POST",
+      body: JSON.stringify({ layout: layout || "banner" }),
+    }),
+  startAudiobook: (id) => req(`/api/story/${id}/audiobook`, { method: "POST" }),
 };

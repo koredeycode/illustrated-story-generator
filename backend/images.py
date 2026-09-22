@@ -14,15 +14,16 @@ except ImportError:
     from prompts import NEGATIVE_PROMPT
 
 
-def render_image(prompt: str, seed: int, scripts: dict | None = None) -> bytes:
+def render_image(prompt: str, seed: int, scripts: dict | None = None,
+                 steps: int = 28, width: int = 768, height: int = 512) -> bytes:
     """Blocking Forge txt2img call — run in a thread. Returns PNG bytes."""
     payload: dict[str, Any] = {
         "prompt": prompt,
         "negative_prompt": NEGATIVE_PROMPT,
         "seed": seed,
-        "steps": 28,
-        "width": 768,
-        "height": 512,
+        "steps": steps,
+        "width": width,
+        "height": height,
         "sampler_name": "Euler a",
     }
     if scripts:

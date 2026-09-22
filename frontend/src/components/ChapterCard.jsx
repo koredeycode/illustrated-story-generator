@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api.js";
 
 function SceneStatus({ status }) {
-  if (status === "done") return null;
+  if (status === "done" || status === "preview") return null;
   const label =
     status === "queued"
       ? "Queued"
@@ -33,11 +33,11 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
   const [regenError, setRegenError] = useState("");
   const status = chapter.status;
 
-  const regen = async () => {
+  const act = async (fn) => {
     setBusy(true);
     setRegenError("");
     try {
-      await api.regenerate(bookId, chapter.idx);
+      await fn();
       onChanged(await api.getStory(bookId));
     } catch (err) {
       setRegenError(String(err.message || err));
@@ -45,6 +45,10 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
       setBusy(false);
     }
   };
+
+  const regen = () => act(() => api.regenerate(bookId, chapter.idx));
+  const approve = () => act(() => api.approveChapter(bookId, chapter.idx));
+  const newPreview = () => act(() => api.previewChapter(bookId, chapter.idx));
 
   return (
     <article
@@ -58,6 +62,32 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
           className="aspect-[3/2] w-full object-cover"
           loading="lazy"
         />
+      ) : status === "preview" && chapter.preview_url ? (
+        <div>
+          <img
+            src={chapter.preview_url}
+            alt={`Chapter ${chapter.idx + 1} preview`}
+            className="aspect-[3/2] w-full object-cover"
+            loading="lazy"
+          />
+          <div className="flex flex-wrap gap-2 bg-amber-50 p-3">
+            <button
+              onClick={approve}
+              disabled={busy}
+              aria-busy={busy}
+              className="rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-50"
+            >
+              {busy ? "Rendering…" : "Approve — full render"}
+            </button>
+            <button
+              onClick={newPreview}
+              disabled={busy}
+              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+            >
+              New preview
+            </button>
+          </div>
+        </div>
       ) : (
         <SceneStatus status={status} />
       )}
@@ -72,6 +102,11 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
               className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900"
             >
               hero match {Math.round(chapter.score * 100)}%
+            </span>
+          )}
+          {status === "preview" && (
+            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-900">
+              awaiting approval
             </span>
           )}
         </div>
