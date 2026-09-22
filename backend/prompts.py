@@ -30,6 +30,7 @@ def build_chapter_messages(
     total_chapters: int,
     previous_recap: str,
     art_style: str,
+    guide: str = "",
 ) -> list[dict]:
     """Chat messages that force the LLM to return strict JSON per chapter."""
     position = (
@@ -49,6 +50,7 @@ def build_chapter_messages(
         f"This is chapter {chapter_idx + 1} of {total_chapters}: {position}. "
         f"The hero is {hero}. The theme is: {theme}. "
         "Keep continuity with the story so far. "
+        + (f"Format guide: {guide} " if guide else "") +
         "The image_prompt must be drawable: describe who is where doing what, "
         "plus mood and setting."
     )
