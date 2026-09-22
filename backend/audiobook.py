@@ -68,6 +68,27 @@ def _stamp(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
 
 
+def _sentences(text: str) -> list[str]:
+    """Split narration into short cues (sentences, halved on commas if long)."""
+    import re as _re
+
+    parts = [s.strip() for s in _re.split(r"(?<=[.!?])\s+", " ".join(text.split())) if s.strip()]
+    cues: list[str] = []
+    for s in parts:
+        while len(s) > 140 and "," in s:
+            head, _, rest = s.partition(",")
+            cues.append(head.strip() + ",")
+            s = rest.strip()
+        if s:
+            cues.append(s)
+    return cues or [text.strip()]
+    ms = int(round(seconds * 1000))
+    h, ms = divmod(ms, 3600000)
+    m, ms = divmod(ms, 60000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
 def _write_vtt(cues: list[tuple[float, float, str]], out: Path) -> None:
     lines = ["WEBVTT", ""]
     for start, end, text in cues:
@@ -121,8 +142,17 @@ async def build_audiobook(book_id: str) -> None:
         cursor = 0.0
         for idx, text, seg in cue_src:
             dur = await asyncio.to_thread(_duration, seg)
-            snippet = " ".join(text.split())[:140]
-            cues.append((cursor, cursor + dur, f"Chapter {idx + 1}\n{snippet}"))
+            head = min(1.5, dur * 0.15)
+            cues.append((cursor, cursor + head, f"Chapter {idx + 1}"))
+            rest = dur - head
+            sents = _sentences(text)
+            weights = [max(1, len(s)) for s in sents]
+            total_w = sum(weights)
+            t = cursor + head
+            for s, w in zip(sents, weights):
+                span = rest * w / total_w if total_w else 0
+                cues.append((t, t + span, s))
+                t += span
             cursor += dur
         await asyncio.to_thread(_write_vtt, cues, d / "audiobook.vtt")
         book["audio"] = {"status": "done", "url": f"/books/{book_id}/audiobook.mp4",

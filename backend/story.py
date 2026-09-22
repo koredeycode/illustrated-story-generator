@@ -250,11 +250,19 @@ def _cover_impl(book_id: str, layout: str) -> str | None:
     CREAM, INK, MUTED = (250, 247, 240), (41, 37, 36), (120, 113, 108)
     base = PILImage.new("RGB", (W, H), CREAM)
     draw = ImageDraw.Draw(base, "RGBA")
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 76)
-        small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 34)
-    except Exception:
-        title_font = small_font = ImageFont.load_default()
+    def _font(candidates, size):
+        for path in candidates:
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+        print("[cover] WARNING: no display font found, tiny fallback type in use")
+        return ImageFont.load_default()
+
+    _D = "/usr/share/fonts/truetype/dejavu/"
+    title_font = _font([_D + "DejaVuSerif-Bold.ttf", _D + "DejaVuSans-Bold.ttf"], 92)
+    small_font = _font([_D + "DejaVuSans.ttf", _D + "DejaVuSerif.ttf"], 34)
+    print(f"[cover] fonts: {getattr(title_font, 'path', 'fallback')} / {getattr(small_font, 'path', 'fallback')}")
 
     def wrap(text, font, max_w):
         words, lines, cur = text.split(), [], ""
@@ -277,28 +285,32 @@ def _cover_impl(book_id: str, layout: str) -> str | None:
         return y
 
     im = PILImage.open(src).convert("RGB")
-    if layout == "top":
-        y = 60
-        y = center(wrap(meta["hero"], title_font, W - 120), title_font, W / 2, y, INK) + 10
-        y = center(wrap(meta["theme"], small_font, W - 160), small_font, W / 2, y, MUTED) + 30
-        box_h = H - y - 40
-        im = im.resize((W, int(W * im.height / im.width)))
-        if im.height > box_h:
-            top = (im.height - box_h) // 2
-            im = im.crop((0, top, W, top + box_h))
-        base.paste(im, (0, y))
-    else:  # banner: full-bleed image, cream band with title at the bottom
-        band = 300
-        im_h = H - band
-        im = im.resize((W, int(W * im.height / im.width)))
-        if im.height < im_h:
-            im = im.resize((W, im_h))
-        top = max(0, (im.height - im_h) // 2)
-        base.paste(im.crop((0, top, W, top + im_h)), (0, 0))
-        y = H - band + 30
-        y = center(wrap(meta["hero"], title_font, W - 120), title_font, W / 2, y, INK) + 6
-        sub = meta["theme"] + (f"  •  {meta['dedication']}" if meta.get("dedication") else "")
-        center(wrap(sub, small_font, W - 160), small_font, W / 2, y, MUTED)
+    scale = max(W / im.width, H / im.height)
+    im = im.resize((int(im.width * scale) + 1, int(im.height * scale) + 1))
+    left, top = (im.width - W) // 2, (im.height - H) // 2
+    base = im.crop((left, top, left + W, top + H)).convert("RGBA")
+
+    band_h = 400
+    shade = PILImage.new("RGBA", (W, H), (0, 0, 0, 0))
+    sdraw = ImageDraw.Draw(shade)
+    for i in range(band_h):
+        a = int(170 * i / band_h)
+        y0 = (H - band_h + i) if layout == "banner" else (band_h - 1 - i)
+        sdraw.line([(0, y0), (W, y0)], fill=(0, 0, 0, a))
+    base = PILImage.alpha_composite(base, shade).convert("RGB")
+    draw = ImageDraw.Draw(base, "RGBA")
+
+    CREAM_TXT = (250, 247, 240)
+    size = 96
+    lines = wrap(meta["hero"], title_font, W - 120)
+    while len(lines) > 2 and size > 48:
+        size -= 8
+        title_font = _font([_D + "DejaVuSerif-Bold.ttf", _D + "DejaVuSans-Bold.ttf"], size)
+        lines = wrap(meta["hero"], title_font, W - 120)
+    y = (H - band_h + 70) if layout == "banner" else 70
+    y = center(lines, title_font, W / 2, y, CREAM_TXT) + 8
+    sub = meta["theme"] + (f"  •  {meta['dedication']}" if meta.get("dedication") else "")
+    center(wrap(sub, small_font, W - 140), small_font, W / 2, y, CREAM_TXT)
 
     base.save(book_dir(book_id) / "cover.png")
     return f"/books/{book_id}/cover.png"
