@@ -696,6 +696,27 @@ async def api_approve_plan(pid: str, spec: PlanApprove) -> dict[str, Any]:
     return {"book_id": book_id, "version": v}
 
 
+class AdoptSpec(BaseModel):
+    book_id: str = Field(min_length=1, max_length=64)
+
+
+@router.post("/api/projects/{pid}/adopt")
+def api_adopt_book(pid: str, spec: AdoptSpec) -> dict[str, Any]:
+    """Adopt an orphan book (e.g. made before projects existed) into a project."""
+    ensure_project(pid)
+    try:
+        book = ensure_book(spec.book_id)
+    except HTTPException:
+        raise HTTPException(404, "book not found on this machine — it may live in another session")
+    v = link_version(pid, spec.book_id, label=str(book["meta"].get("hero") or spec.book_id))
+    append_message(pid, "assistant",
+                   f"Adopted **{book['meta'].get('hero', spec.book_id)}** into this project.",
+                   {"kind": "adopted", "book_id": spec.book_id})
+    emit_project(pid, {"type": "message", "role": "assistant",
+                       "content": "Previous book adopted."})
+    return {"book_id": spec.book_id, "version": v}
+
+
 @router.get("/api/projects/{pid}/events")
 async def project_events(pid: str) -> StreamingResponse:
     p = ensure_project(pid)

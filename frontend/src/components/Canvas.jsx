@@ -53,9 +53,15 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
       </div>
 
       <div className="bg-dots-faint min-h-0 flex-1 overflow-y-auto p-4">
+        {book.status === "missing" && (
+          <p role="alert" className="mx-auto mb-3 max-w-2xl rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-300">
+            Book files aren't on this machine — it may live in cloud storage or another session.
+            Re-open it from the Library once its files are here.
+          </p>
+        )}
         {tab === "Storyboard" && (
           <div className="grid grid-cols-1 gap-4 pb-24 sm:grid-cols-2 xl:grid-cols-3">
-            {book.chapters.map((c) => (
+            {(book.chapters || []).map((c) => (
               <figure
                 key={c.idx}
                 className={`overflow-hidden rounded-xl border bg-panel transition ${
@@ -95,7 +101,7 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
 
         {tab === "Manuscript" && (
           <div className="mx-auto max-w-2xl space-y-3 pb-24">
-            {book.chapters.map((c) => (
+            {(book.chapters || []).map((c) => (
               <ChapterCard key={c.idx} bookId={book.id} chapter={c} onChanged={refreshProject} />
             ))}
           </div>
@@ -106,7 +112,7 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
             {book.cover_url && (
               <img src={book.cover_url} alt="Book cover" className="w-full rounded-2xl border border-white/10 object-cover" />
             )}
-            {book.chapters.map((c) => (
+            {(book.chapters || []).map((c) => (
               <article key={c.idx} className="overflow-hidden rounded-2xl border border-white/10 bg-panel">
                 {c.image_url && <img src={c.image_url} alt={`Page ${c.idx + 1}`} className="w-full object-cover" />}
                 <div className="p-5">

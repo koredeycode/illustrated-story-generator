@@ -96,7 +96,12 @@ export default function ExportBar({ project, onChanged }) {
                   setPreviewing(false);
                 }
               }}
-              disabled={busy !== "" || book.status !== "complete" || audio.status === "working" || !voices}
+              disabled={busy !== "" || audio.status === "working" || !voices}
+              title={
+                audio.status === "working"
+                  ? "Voice is locked while narration runs"
+                  : "Pick a narration voice — preview it before the book finishes"
+              }
               aria-label="Narration voice"
               className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/50 px-2 py-1.5 text-xs text-zinc-200 focus:border-accent/60 focus:outline-none disabled:opacity-50"
             >
@@ -142,9 +147,16 @@ export default function ExportBar({ project, onChanged }) {
         </div>
       )}
       {audio.status === "done" && audio.url && (
-        <video controls preload="metadata" src={audio.url} className="h-10 w-full rounded-xl bg-black" aria-label="Audiobook player">
-          {audio.captions && <track kind="captions" src={audio.captions} srcLang="en" label="English" default />}
-        </video>
+        <>
+          <video controls preload="metadata" src={audio.url} className="h-10 w-full rounded-xl bg-black" aria-label="Audiobook player">
+            {audio.captions && <track kind="captions" src={audio.captions} srcLang="en" label="English" default />}
+          </video>
+          {audio.voice && (
+            <p className="text-[11px] text-zinc-500">
+              Narrated by {audio.voice.replace(/^[a-z]{2}-[A-Z]{2}-/, "").replace(/Neural$/, "")}
+            </p>
+          )}
+        </>
       )}
       {error && (
         <p role="alert" className="text-xs text-red-400">

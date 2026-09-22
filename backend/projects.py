@@ -122,6 +122,7 @@ def list_projects() -> list[dict]:
             out.append({"id": pid, "title": p["meta"].get("title", pid),
                         "book_type": p["meta"].get("book_type", "picture"),
                         "versions": len(p["versions"]),
+                        "version_books": [v.get("book_id") for v in p["versions"]],
                         "active_book": p.get("active_book")})
         except Exception:
             continue
@@ -144,9 +145,11 @@ def public_project(pid: str) -> dict[str, Any]:
     active = None
     if p.get("active_book"):
         try:
+            # Lazy disk reload: BOOKS is empty after a backend restart.
+            ensure_book(p["active_book"])
             active = public_book(p["active_book"])
         except Exception:
-            active = {"id": p["active_book"], "status": "missing"}
+            active = {"id": p["active_book"], "status": "missing", "chapters": []}
     return {"id": pid, "meta": p["meta"], "versions": p["versions"],
             "active_book": p.get("active_book"), "active": active,
             "pending_plan": p.get("pending_plan"),

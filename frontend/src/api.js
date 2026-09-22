@@ -95,5 +95,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ plan: plan || null }),
     }),
+  adoptBook: (pid, book_id) =>
+    req(`/api/projects/${pid}/adopt`, {
+      method: "POST",
+      body: JSON.stringify({ book_id }),
+    }),
   projectEventsUrl: (pid) => `/api/projects/${pid}/events`,
 };

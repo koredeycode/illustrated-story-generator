@@ -28,6 +28,7 @@ export default function App() {
   const [chatBusy, setChatBusy] = useState(false);
   const [shared, setShared] = useState(false);
   const [draft, setDraft] = useState("");
+  const [loadError, setLoadError] = useState("");
   const shareTimer = useRef(null);
 
   useEffect(() => () => {
@@ -51,8 +52,10 @@ export default function App() {
     }
     try {
       setProject(await api.getProject(projectId));
-    } catch {
-      /* keep stale view */
+      setLoadError("");
+    } catch (err) {
+      // No silent dead-ends: surface it so the user can retry or go home.
+      setLoadError(String(err.message || err));
     }
   }, [projectId]);
 
@@ -65,6 +68,8 @@ export default function App() {
 
   const select = (id) => {
     setProjectId(id);
+    setProject(null);
+    setLoadError("");
     setSelection(null);
     setSidebarKey((k) => k + 1);
   };
@@ -135,6 +140,39 @@ export default function App() {
 
   if (!projectId) {
     return <Landing onStart={startProject} onOpen={select} />;
+  }
+
+  if (loadError && !project) {
+    return (
+      <div className="bg-dots flex min-h-screen flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-panel p-6 text-center">
+          <p className="font-display text-xl font-black text-white">Couldn't open this project</p>
+          <p role="alert" className="mt-2 text-sm text-zinc-400">
+            {loadError}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            Its files may live in another session — check the backend is running with the same DATA_DIR.
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            <button
+              onClick={() => {
+                setLoadError("");
+                refresh();
+              }}
+              className="rounded-xl bg-zinc-100 px-4 py-2 text-sm font-bold text-black transition hover:bg-white"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => setProjectId(null)}
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+            >
+              Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
