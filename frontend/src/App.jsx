@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AgentManager from "./components/AgentManager.jsx";
 import Canvas from "./components/Canvas.jsx";
 import ChatPane from "./components/ChatPane.jsx";
@@ -6,17 +6,43 @@ import ExportBar from "./components/ExportBar.jsx";
 import HealthDot from "./components/HealthDot.jsx";
 import Icon from "./components/icons.jsx";
 import Inspector from "./components/Inspector.jsx";
+import Landing from "./components/Landing.jsx";
+import PromptBar from "./components/PromptBar.jsx";
 import ProjectsSidebar from "./components/ProjectsSidebar.jsx";
 import { api } from "./api.js";
 import "./index.css";
 
-/** Stitch-style Studio: projects rail | chat + canvas | inspector rail. */
+const RAIL = [
+  { id: "inspector", label: "Inspector", icon: "sliders" },
+  { id: "agent", label: "Agent", icon: "sparkles" },
+  { id: "export", label: "Export", icon: "download" },
+];
+
+/** Stitch-style dark studio: topbar | chat sidebar + dotted canvas + icon rail. */
 export default function App() {
   const [projectId, setProjectId] = useState(null);
   const [project, setProject] = useState(null);
   const [selection, setSelection] = useState(null);
   const [sidebarKey, setSidebarKey] = useState(0);
-  const [rightTab, setRightTab] = useState("Inspector");
+  const [rightPanel, setRightPanel] = useState("inspector");
+  const [chatBusy, setChatBusy] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [draft, setDraft] = useState("");
+  const shareTimer = useRef(null);
+
+  useEffect(() => () => {
+    if (shareTimer.current) clearTimeout(shareTimer.current);
+  }, []);
+
+  // Deep-link: ?project=<id> opens a project directly (used by Share).
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("project");
+      if (id) setProjectId(id);
+    } catch {
+      /* no URL API — ignore */
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!projectId) {
@@ -26,7 +52,7 @@ export default function App() {
     try {
       setProject(await api.getProject(projectId));
     } catch {
-      /* project may be on another machine; keep stale view */
+      /* keep stale view */
     }
   }, [projectId]);
 
@@ -59,59 +85,161 @@ export default function App() {
     [refresh]
   );
 
+  const sendChat = useCallback(
+    async (message) => {
+      if (!projectId || chatBusy) return;
+      setChatBusy(true);
+      try {
+        await api.chat(projectId, message, selection?.chapter_idx ?? null);
+        setDraft("");
+        onChanged(await api.getProject(projectId));
+      } catch (err) {
+        try {
+          onChanged(await api.getProject(projectId));
+        } catch {
+          /* refresh best-effort; the original error is what matters */
+        }
+        throw err;
+      } finally {
+        setChatBusy(false);
+      }
+    },
+    [projectId, chatBusy, selection, onChanged]
+  );
+
+  const startProject = useCallback(
+    async (message, bookType) => {
+      const { id } = await api.createProject("", bookType || "picture");
+      setProjectId(id);
+      setSidebarKey((k) => k + 1);
+      const p = await api.getProject(id);
+      setProject(p);
+      await api.chat(id, message, null);
+      onChanged(await api.getProject(id));
+    },
+    [onChanged]
+  );
+
+  const share = async () => {
+    try {
+      const url = new URL(window.location.href);
+      if (projectId) url.searchParams.set("project", projectId);
+      await navigator.clipboard.writeText(url.toString());
+      setShared(true);
+      if (shareTimer.current) clearTimeout(shareTimer.current);
+      shareTimer.current = setTimeout(() => setShared(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  if (!projectId) {
+    return <Landing onStart={startProject} onOpen={select} />;
+  }
+
   return (
-    <div className="flex min-h-screen flex-col px-4 py-4 sm:px-6">
-      <header className="mx-auto mb-4 flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 font-display text-3xl font-black tracking-tight">
-            <Icon name="book" className="h-7 w-7 text-amber-700" />
-            Storybook Studio
-          </h1>
-          <p className="mt-0.5 text-sm text-stone-500">Chat it. Watch it draw. Any illustrated book.</p>
+    <div className="bg-dots flex min-h-screen flex-col overflow-hidden lg:h-screen">
+      {/* top bar */}
+      <header className="z-20 flex items-center gap-3 border-b border-white/10 bg-black/60 px-4 py-2 backdrop-blur">
+        <button
+          onClick={() => setProjectId(null)}
+          aria-label="Home"
+          className="flex items-center gap-2 rounded-lg px-1 py-1 transition hover:bg-white/10"
+        >
+          <Icon name="book" className="h-5 w-5 text-accent" />
+          <span className="hidden font-display text-lg font-black text-white sm:inline">Studio</span>
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-zinc-100">
+            {project?.meta?.title || "Loading…"}
+          </p>
+          <p className="text-[11px] text-zinc-500">
+            {project?.meta?.book_type || ""} · {(project?.versions || []).length} version
+            {(project?.versions || []).length === 1 ? "" : "s"}
+          </p>
         </div>
         <HealthDot />
+        <button
+          onClick={share}
+          className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
+        >
+          <Icon name="share" className="h-3.5 w-3.5" /> {shared ? "Copied!" : "Share"}
+        </button>
+        <button
+          onClick={() => setRightPanel(rightPanel === "export" ? null : "export")}
+          className="flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-black transition hover:bg-white"
+        >
+          <Icon name="download" className="h-3.5 w-3.5" /> Export
+        </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-3 lg:flex-row">
-        <ProjectsSidebar activeId={projectId} onSelect={select} refreshKey={sidebarKey} />
-
-        <div className="flex min-h-[70vh] min-w-0 flex-1 flex-col gap-3 xl:flex-row">
-          <div className="flex min-h-[60vh] min-w-0 flex-1">
-            <ChatPane projectId={projectId} project={project} selection={selection} onChanged={onChanged} />
+      {/* body */}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* left: projects + chat */}
+        <aside className="flex max-h-[45vh] w-full shrink-0 flex-col gap-2 border-b border-white/10 bg-black/60 p-3 backdrop-blur lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+          <ProjectsSidebar
+            activeId={projectId}
+            onSelect={select}
+            refreshKey={sidebarKey}
+            onNew={() => setProjectId(null)}
+          />
+          <div className="flex min-h-0 flex-1 rounded-2xl border border-white/10 bg-panel/80">
+            <ChatPane
+              projectId={projectId}
+              project={project}
+              selection={selection}
+              onChanged={onChanged}
+              onSuggest={setDraft}
+            />
           </div>
-          <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-3">
+        </aside>
+
+        {/* center: canvas + floating prompt */}
+        <main className="relative flex min-h-[70vh] min-w-0 flex-1 flex-col lg:min-h-0">
+          <div className="min-h-0 flex-1 p-4">
             <Canvas project={project} selection={selection} onSelect={setSelection} onChanged={onChanged} />
-            <ExportBar project={project} onChanged={onChanged} />
           </div>
-        </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
+            <PromptBar
+              onSend={sendChat}
+              busy={chatBusy}
+              selection={selection}
+              onClearSelection={() => setSelection(null)}
+              draft={draft}
+              pendingPlan={project?.pending_plan}
+            />
+          </div>
+        </main>
 
-        <div className="flex w-full shrink-0 flex-col gap-3 lg:w-72">
-          <div role="tablist" aria-label="Right panel" className="flex gap-1">
-            {["Inspector", "Agent"].map((t) => (
+        {/* right: toggle panel + icon rail */}
+        <div className="flex shrink-0">
+          {rightPanel && (
+            <div className="max-h-[50vh] w-full shrink-0 overflow-y-auto border-t border-white/10 bg-black/60 p-3 backdrop-blur lg:max-h-none lg:w-72 lg:border-l lg:border-t-0">
+              {rightPanel === "inspector" && <Inspector project={project} onChanged={onChanged} />}
+              {rightPanel === "agent" && <AgentManager project={project} />}
+              {rightPanel === "export" && <ExportBar project={project} onChanged={onChanged} />}
+            </div>
+          )}
+          <nav aria-label="Panels" className="flex w-full shrink-0 flex-row items-center justify-center gap-1 border-t border-white/10 bg-black/60 py-2 backdrop-blur lg:w-12 lg:flex-col lg:border-l lg:border-t-0 lg:py-3">
+            {RAIL.map((r) => (
               <button
-                key={t}
-                role="tab"
-                aria-selected={rightTab === t}
-                onClick={() => setRightTab(t)}
-                className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  rightTab === t ? "bg-stone-900 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200"
+                key={r.id}
+                onClick={() => setRightPanel(rightPanel === r.id ? null : r.id)}
+                aria-pressed={rightPanel === r.id}
+                title={r.label}
+                aria-label={r.label}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                  rightPanel === r.id
+                    ? "bg-violet-400 text-black"
+                    : "text-zinc-400 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                {t}
+                <Icon name={r.icon} className="h-4 w-4" />
               </button>
             ))}
-          </div>
-          {rightTab === "Inspector" ? (
-            <Inspector project={project} onChanged={onChanged} />
-          ) : (
-            <AgentManager project={project} />
-          )}
+          </nav>
         </div>
-      </main>
-
-      <footer className="mx-auto mt-6 w-full max-w-[1400px] text-center text-xs text-stone-400">
-        Runs on free Kaggle GPU — supervised agent, every plan needs your approval. Finished work backs up to cloud storage when configured.
-      </footer>
+      </div>
     </div>
   );
 }

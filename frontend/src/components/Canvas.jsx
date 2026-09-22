@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import ChapterCard from "./ChapterCard.jsx";
 import Icon from "./icons.jsx";
 
-/** M3 Canvas: Manuscript / Storyboard / Reader tabs over the active book version. */
+/** Dotted dark canvas: page frames (Storyboard) / Manuscript / Reader. */
 const TABS = ["Storyboard", "Manuscript", "Reader"];
 
 export default function Canvas({ project, selection, onSelect, onChanged }) {
@@ -20,19 +20,19 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
 
   if (!book)
     return (
-      <div className="flex flex-1 items-center justify-center rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
-        <div>
-          <Icon name="image" className="mx-auto h-10 w-10 text-stone-300" />
-          <p className="mt-3 font-medium">Canvas is empty</p>
-          <p className="mt-1 text-sm text-stone-500">Approve a plan in chat and pages will stream in here.</p>
+      <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02]">
+        <div className="text-center">
+          <Icon name="image" className="mx-auto h-10 w-10 text-zinc-700" />
+          <p className="mt-3 font-medium text-zinc-300">Canvas is empty</p>
+          <p className="mt-1 text-sm text-zinc-500">Approve a plan in chat and pages will stream in here.</p>
         </div>
       </div>
     );
 
   return (
-    <section aria-label="Canvas" className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white ring-1 ring-stone-200">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 p-3">
-        <div role="tablist" aria-label="Canvas modes" className="flex gap-1">
+    <section aria-label="Canvas" className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 p-3">
+        <div role="tablist" aria-label="Canvas modes" className="flex gap-1 rounded-xl bg-white/5 p-1">
           {TABS.map((t) => (
             <button
               key={t}
@@ -40,47 +40,61 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
               aria-selected={tab === t}
               onClick={() => setTab(t)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                tab === t ? "bg-stone-900 text-white" : "text-stone-600 hover:bg-stone-100"
+                tab === t ? "bg-zinc-100 text-black" : "text-zinc-400 hover:text-white"
               }`}
             >
               {t}
             </button>
           ))}
         </div>
-        <p className="text-xs text-stone-500">
-          {book.meta?.hero} · {book.status} · click a page to talk about it
+        <p className="text-xs text-zinc-500">
+          {book.meta?.hero} · {book.status} · click a frame to talk about it
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="bg-dots-faint min-h-0 flex-1 overflow-y-auto p-4">
         {tab === "Storyboard" && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 pb-24 sm:grid-cols-2 xl:grid-cols-3">
             {book.chapters.map((c) => (
-              <button
+              <figure
                 key={c.idx}
-                onClick={() => onSelect({ chapter_idx: c.idx })}
-                aria-pressed={selection?.chapter_idx === c.idx}
-                className={`overflow-hidden rounded-xl text-left ring-2 transition ${
-                  selection?.chapter_idx === c.idx ? "ring-amber-700" : "ring-stone-200 hover:ring-stone-400"
+                className={`overflow-hidden rounded-xl border bg-panel transition ${
+                  selection?.chapter_idx === c.idx
+                    ? "border-accent/70 shadow-[0_0_24px_rgba(167,139,250,0.25)]"
+                    : "border-white/10 hover:border-white/25"
                 }`}
               >
-                {c.image_url ? (
-                  <img src={c.image_url} alt={`Page ${c.idx + 1} art`} className="aspect-[3/2] w-full object-cover" loading="lazy" />
-                ) : (
-                  <span className="flex aspect-[3/2] w-full items-center justify-center bg-stone-100 text-sm text-stone-500">
-                    {c.status}
+                <button onClick={() => onSelect({ chapter_idx: c.idx })} className="block w-full text-left" aria-pressed={selection?.chapter_idx === c.idx}>
+                  {c.image_url ? (
+                    <img src={c.image_url} alt={`Page ${c.idx + 1} art`} className="aspect-[3/2] w-full object-cover" loading="lazy" />
+                  ) : (
+                    <span className="flex aspect-[3/2] w-full items-center justify-center bg-white/5 text-sm text-zinc-500">
+                      {c.status}
+                    </span>
+                  )}
+                </button>
+                <figcaption className="flex items-center justify-between gap-2 border-t border-white/10 px-2.5 py-1.5">
+                  <span className="truncate text-xs text-zinc-400">
+                    P{c.idx + 1} · {(c.text || "…").slice(0, 48)}
                   </span>
-                )}
-                <span className="block truncate bg-white px-2 py-1 text-xs text-stone-600">
-                  P{c.idx + 1} · {(c.text || "…").slice(0, 60)}
-                </span>
-              </button>
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      c.status === "done"
+                        ? "bg-green-400"
+                        : String(c.status).startsWith("error")
+                          ? "bg-red-400"
+                          : "bg-amber-400 motion-safe:animate-pulse"
+                    }`}
+                    title={c.status}
+                  />
+                </figcaption>
+              </figure>
             ))}
           </div>
         )}
 
         {tab === "Manuscript" && (
-          <div className="space-y-3">
+          <div className="mx-auto max-w-2xl space-y-3 pb-24">
             {book.chapters.map((c) => (
               <ChapterCard key={c.idx} bookId={book.id} chapter={c} onChanged={refreshProject} />
             ))}
@@ -88,23 +102,20 @@ export default function Canvas({ project, selection, onSelect, onChanged }) {
         )}
 
         {tab === "Reader" && (
-          <div className="mx-auto max-w-xl space-y-5">
+          <div className="mx-auto max-w-xl space-y-5 pb-24">
             {book.cover_url && (
-              <img src={book.cover_url} alt="Book cover" className="w-full rounded-2xl object-cover ring-1 ring-stone-200" />
+              <img src={book.cover_url} alt="Book cover" className="w-full rounded-2xl border border-white/10 object-cover" />
             )}
             {book.chapters.map((c) => (
-              <article key={c.idx} className="overflow-hidden rounded-2xl ring-1 ring-stone-200">
+              <article key={c.idx} className="overflow-hidden rounded-2xl border border-white/10 bg-panel">
                 {c.image_url && <img src={c.image_url} alt={`Page ${c.idx + 1}`} className="w-full object-cover" />}
                 <div className="p-5">
-                  <h3 className="font-display text-lg font-bold">Chapter {c.idx + 1}</h3>
-                  <p className="mt-2 whitespace-pre-wrap leading-relaxed text-stone-800">{c.text || "…"}</p>
-                  <a href={api.exportUrl(book.id, "html")} target="_blank" rel="noreferrer" className="sr-only">
-                    Export
-                  </a>
+                  <h3 className="font-display text-lg font-bold text-white">Chapter {c.idx + 1}</h3>
+                  <p className="mt-2 whitespace-pre-wrap leading-relaxed text-zinc-300">{c.text || "…"}</p>
                 </div>
               </article>
             ))}
-            <p className="text-center font-display text-2xl font-black">The End</p>
+            <p className="text-center font-display text-2xl font-black text-white">The End</p>
           </div>
         )}
       </div>
