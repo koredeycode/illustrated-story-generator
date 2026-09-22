@@ -3,8 +3,10 @@
 import re
 
 NEGATIVE_PROMPT = (
-    "blurry, low quality, distorted, deformed, watermark, text, words, "
-    "letters, signature, extra limbs, scary, horror"
+    "blurry, low quality, worst quality, jpeg artifacts, watermark, text, words, "
+    "letters, signature, deformed, distorted, bad anatomy, bad hands, "
+    "missing fingers, extra fingers, extra limbs, cropped, out of frame, "
+    "morbid, mutilated, scary, horror"
 )
 
 STYLE_SUFFIXES = {

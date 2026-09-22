@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import Icon from "./icons.jsx";
 
 const fieldInput =
   "w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink shadow-sm " +
@@ -15,6 +16,7 @@ export default function CreateForm({ onCreated }) {
   const [dedication, setDedication] = useState("");
   const [loras, setLoras] = useState([]);
   const [lora, setLora] = useState("");
+  const [quality, setQuality] = useState("balanced");
   const [approval, setApproval] = useState(false);
   const [step, setStep] = useState("setup");
   const [refs, setRefs] = useState(null);
@@ -63,6 +65,7 @@ export default function CreateForm({ onCreated }) {
         art_style: artStyle,
         dedication,
         lora,
+        quality,
         approval,
         ref_token: refs?.token || "",
         ref_seed: refSeed,
@@ -87,6 +90,17 @@ export default function CreateForm({ onCreated }) {
       <p className="mt-1 text-sm text-stone-500">
         About two minutes of GPU per chapter. Keep the tab open while it draws.
       </p>
+      <ol aria-label="Creation steps" className="mt-4 flex items-center gap-2 text-xs font-medium">
+        <li aria-current={step === "setup" ? "step" : undefined} className="flex items-center gap-1.5">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full ${step === "setup" ? "bg-amber-700 text-white" : "bg-stone-200 text-stone-600"}`}>1</span>
+          Story
+        </li>
+        <li aria-hidden="true" className="h-px flex-1 bg-stone-200" />
+        <li aria-current={step === "hero" ? "step" : undefined} className="flex items-center gap-1.5">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full ${step === "hero" ? "bg-amber-700 text-white" : "bg-stone-200 text-stone-600"}`}>2</span>
+          Hero look
+        </li>
+      </ol>
 
       {step === "setup" ? (
         <div className="mt-6 space-y-4">
@@ -168,6 +182,18 @@ export default function CreateForm({ onCreated }) {
               </select>
             </label>
           </div>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium">Render quality</span>
+            <select
+              className={fieldInput}
+              value={quality}
+              onChange={(e) => setQuality(e.target.value)}
+            >
+              <option value="draft">Draft — fast, rough (~1 min/chapter)</option>
+              <option value="balanced">Balanced — recommended (~2 min/chapter)</option>
+              <option value="best">Best — slow, prettiest (~4 min/chapter)</option>
+            </select>
+          </label>
           <details className="rounded-xl border border-stone-200 px-3 py-2">
             <summary className="cursor-pointer text-sm font-medium">
               Add a dedication
@@ -204,15 +230,16 @@ export default function CreateForm({ onCreated }) {
               type="button"
               onClick={findHero}
               disabled={refBusy}
-              className="flex-1 rounded-xl border border-amber-700 px-4 py-3 font-bold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-700 px-4 py-3 font-bold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50"
             >
-              {refBusy ? "Drawing looks…" : "Pick my hero's look →"}
+              <Icon name="sparkles" />
+              {refBusy ? "Drawing looks…" : "Pick my hero's look"}
             </button>
             <button
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className="flex-1 rounded-xl bg-amber-700 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-amber-800 focus-visible:outline-amber-900 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-700 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-amber-800 focus-visible:outline-amber-900 disabled:opacity-50"
             >
               {busy ? "Starting…" : "Surprise me — generate"}
             </button>
@@ -251,16 +278,17 @@ export default function CreateForm({ onCreated }) {
             <button
               type="button"
               onClick={() => setStep("setup")}
-              className="flex-1 rounded-xl border border-stone-300 px-4 py-3 font-bold text-stone-700 transition hover:bg-stone-100"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-300 px-4 py-3 font-bold text-stone-700 transition hover:bg-stone-100"
             >
-              ← Back
+              <Icon name="arrowLeft" /> Back
             </button>
             <button
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className="flex-1 rounded-xl bg-amber-700 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-amber-800 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-700 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-amber-800 disabled:opacity-50"
             >
+              <Icon name="sparkles" />
               {busy ? "Starting…" : "Generate with this hero"}
             </button>
           </div>

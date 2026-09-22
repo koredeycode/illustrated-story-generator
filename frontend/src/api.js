@@ -1,13 +1,35 @@
+function unreachable(status) {
+  return (
+    `Couldn't reach the GPU server` +
+    (status ? ` (tunnel error ${status})` : ``) +
+    ` — the backend may be restarting. Wait a few seconds and retry.`
+  );
+}
+
 async function req(path, opts) {
-  const r = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...opts,
-  });
+  let r;
+  try {
+    r = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...opts,
+    });
+  } catch {
+    throw new Error(unreachable());
+  }
   if (!r.ok) {
-    const body = await r.text();
+    const body = await r.text().catch(() => "");
+    const isHtml =
+      (r.headers.get("content-type") || "").includes("text/html") ||
+      /^\s*<!doctype html/i.test(body) ||
+      /^\s*<html/i.test(body);
+    if (isHtml) throw new Error(unreachable(r.status));
     throw new Error(`${r.status}: ${body.slice(0, 200)}`);
   }
-  return r.json();
+  try {
+    return await r.json();
+  } catch {
+    throw new Error(unreachable(r.status));
+  }
 }
 
 export const api = {

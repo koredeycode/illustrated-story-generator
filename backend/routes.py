@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 try:
-    from .config import DATA_DIR, FORGE_URL, OLLAMA_URL
+    from .config import DATA_DIR, FORGE_URL, OLLAMA_URL, QUALITY_PRESETS
     from .pdf_export import render_pdf
     from .prompts import STYLE_SUFFIXES
     from .store import BOOKS, book_dir, emit, ensure_book, persist, public_book
@@ -23,7 +23,7 @@ try:
     from .story import adopt_reference, generate_cover, preview_scene, render_reference_options, render_scene, run_book
     from .audiobook import available as audio_available, build_audiobook
 except ImportError:
-    from config import DATA_DIR, FORGE_URL, OLLAMA_URL
+    from config import DATA_DIR, FORGE_URL, OLLAMA_URL, QUALITY_PRESETS
     from pdf_export import render_pdf
     from prompts import STYLE_SUFFIXES
     from store import BOOKS, book_dir, emit, ensure_book, persist, public_book
@@ -41,6 +41,7 @@ class StoryCreate(BaseModel):
     chapters: int = Field(default=5, ge=1, le=10)
     art_style: str = "watercolor"
     seed: int = 42
+    quality: str = "balanced"
     dedication: str = Field(default="", max_length=120)
     lora: str = Field(default="", max_length=100)
     approval: bool = False
@@ -115,6 +116,8 @@ async def create_story(spec: StoryCreate) -> dict[str, Any]:
     meta = spec.model_dump()
     if spec.art_style not in STYLE_SUFFIXES:
         raise HTTPException(400, f"unknown art_style, choose from {list(STYLE_SUFFIXES)}")
+    if spec.quality not in QUALITY_PRESETS:
+        raise HTTPException(400, f"unknown quality, choose from {list(QUALITY_PRESETS)}")
     BOOKS[book_id] = {
         "meta": meta,
         "chapters": [{"idx": i, "text": "", "image_prompt": "", "status": "queued", "score": None} for i in range(spec.chapters)],
@@ -271,6 +274,9 @@ async def make_cover(book_id: str, req: CoverSpec) -> dict[str, Any]:
     try:
         url = await generate_cover(book_id, req.layout)
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(502, f"cover failed: {type(e).__name__}: {e}")
     if not url:
         raise HTTPException(400, "no finished chapter image to build a cover from")

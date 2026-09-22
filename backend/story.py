@@ -8,14 +8,14 @@ import random
 from typing import Any
 
 try:
-    from .config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client
+    from .config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client, quality_preset
     from .images import build_scripts, render_image
     from .prompts import build_chapter_messages, build_image_prompt, build_reference_prompt
     from .quality import MIN_SCORE, hero_score
     from .store import BOOKS, book_dir, emit, persist
     from .storage import sync_book
 except ImportError:
-    from config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client
+    from config import DATA_DIR, LLM_MODEL, MAX_REROLLS, OLLAMA_URL, client, quality_preset
     from images import build_scripts, render_image
     from prompts import build_chapter_messages, build_image_prompt, build_reference_prompt
     from quality import MIN_SCORE, hero_score
@@ -68,11 +68,12 @@ async def render_scene(book_id: str, idx: int, image_prompt: str, seed0: int) ->
     """Render one scene with IP-Adapter ref + CLIP quality gate.
 
     Returns (best_png, best_score). Retries with fresh seeds while the hero
-    match is below MIN_SCORE (max MAX_REROLLS); keeps the best attempt.
+    match is below the quality preset's gate; keeps the best attempt.
     A None score (gate unavailable) accepts the first render.
     """
     book = BOOKS[book_id]
     meta = book["meta"]
+    preset = quality_preset(meta.get("quality", "balanced"))
     hero = meta["hero_desc"] or meta["hero"]
     full_prompt = build_image_prompt(
         image_prompt=image_prompt, hero_desc=hero, art_style=meta["art_style"],
@@ -81,14 +82,16 @@ async def render_scene(book_id: str, idx: int, image_prompt: str, seed0: int) ->
     scripts = await asyncio.to_thread(build_scripts, book)
     best_png: bytes | None = None
     best_score: float | None = None
-    seeds = [seed0] + [random.randint(0, 2**31 - 1) for _ in range(MAX_REROLLS)]
+    rerolls = preset["rerolls"] if preset["rerolls"] else MAX_REROLLS
+    gate = preset["gate"] if preset["gate"] else MIN_SCORE
+    seeds = [seed0] + [random.randint(0, 2**31 - 1) for _ in range(rerolls)]
     for attempt, seed in enumerate(seeds):
-        png = await asyncio.to_thread(render_image, full_prompt, seed, scripts)
+        png = await asyncio.to_thread(render_image, full_prompt, seed, scripts, preset["steps"], 768, 512)
         score = await asyncio.to_thread(hero_score, png, hero)
         print(f"[gate] book {book_id} ch{idx} attempt {attempt} seed {seed} score {score}")
         if best_png is None or (score is not None and (best_score is None or score > best_score)):
             best_png, best_score = png, score
-        if score is None or score >= MIN_SCORE:
+        if score is None or score >= gate:
             break
     assert best_png is not None
     return best_png, best_score
@@ -267,9 +270,10 @@ def _cover_impl(book_id: str, layout: str) -> str | None:
         return lines
 
     def center(lines, font, cx, y, fill):
+        step = getattr(font, "size", 12) + 10
         for line in lines:
             draw.text((cx - draw.textlength(line, font=font) / 2, y), line, font=font, fill=fill)
-            y += font.size + 10
+            y += step
         return y
 
     im = PILImage.open(src).convert("RGB")

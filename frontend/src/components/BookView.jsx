@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import ChapterCard from "./ChapterCard.jsx";
+import Icon from "./icons.jsx";
 
 export default function BookView({ bookId, onBack, onRead }) {
   const [book, setBook] = useState(null);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [coverBusy, setCoverBusy] = useState(false);
   const [audioBusy, setAudioBusy] = useState(false);
   const headingRef = useRef(null);
@@ -52,11 +54,12 @@ export default function BookView({ bookId, onBack, onRead }) {
 
   const newCover = async () => {
     setCoverBusy(true);
+    setActionError("");
     try {
       await api.makeCover(bookId, "banner");
       await refresh();
     } catch (err) {
-      setError(String(err.message || err));
+      setActionError(String(err.message || err));
     } finally {
       setCoverBusy(false);
     }
@@ -64,11 +67,12 @@ export default function BookView({ bookId, onBack, onRead }) {
 
   const makeAudio = async () => {
     setAudioBusy(true);
+    setActionError("");
     try {
       await api.startAudiobook(bookId);
       await refresh();
     } catch (err) {
-      setError(String(err.message || err));
+      setActionError(String(err.message || err));
     } finally {
       setAudioBusy(false);
     }
@@ -79,32 +83,32 @@ export default function BookView({ bookId, onBack, onRead }) {
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={onBack}
-          className="rounded-lg px-2 py-1 text-sm font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-ink"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-ink"
         >
-          ← Library
+          <Icon name="arrowLeft" /> Library
         </button>
         <div className="flex flex-wrap justify-end gap-2">
           <button
             onClick={() => onRead(bookId)}
-            className="rounded-xl bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-stone-700"
+            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-stone-700"
           >
-            📖 Read
+            <Icon name="book" /> Read
           </button>
           <a
             href={api.exportUrl(bookId, "html")}
             target="_blank"
             rel="noreferrer"
-            className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-100"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-100"
           >
-            Web page
+            <Icon name="fileText" /> Web page
           </a>
           <a
             href={api.exportUrl(bookId, "pdf")}
             target="_blank"
             rel="noreferrer"
-            className="rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-800"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-800"
           >
-            PDF book
+            <Icon name="download" /> PDF book
           </a>
         </div>
       </div>
@@ -162,33 +166,45 @@ export default function BookView({ bookId, onBack, onRead }) {
           <button
             onClick={newCover}
             disabled={coverBusy || running}
-            className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
           >
+            <Icon name="image" />
             {coverBusy ? "Making cover…" : book.cover_url ? "New cover" : "Make cover"}
           </button>
           {audio.status === "done" && audio.url ? (
-            <a
-              href={audio.url}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
-            >
-              🎧 Listen (MP4)
-            </a>
+            <div className="w-full">
+              <video
+                controls
+                preload="metadata"
+                src={audio.url}
+                className="w-full rounded-xl bg-stone-900"
+                aria-label="Audiobook player with captions"
+              >
+                {audio.captions && (
+                  <track kind="captions" src={audio.captions} srcLang="en" label="English" default />
+                )}
+              </video>
+            </div>
           ) : (
             <button
               onClick={makeAudio}
               disabled={audioBusy || running || audio.status === "working"}
-              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
             >
+              <Icon name="music" />
               {audio.status === "working"
                 ? `Narrating… ${audio.progress ?? 0}%`
                 : audioBusy
                   ? "Starting…"
-                  : "🎧 Make audiobook"}
+                  : "Make audiobook"}
             </button>
           )}
         </div>
+        {actionError && (
+          <p role="alert" className="mt-2 flex items-start gap-1.5 text-xs text-red-700">
+            <Icon name="alert" /> {actionError}
+          </p>
+        )}
         {String(audio.status).startsWith("error") && (
           <p role="alert" className="mt-2 text-xs text-red-700">
             {audio.status}

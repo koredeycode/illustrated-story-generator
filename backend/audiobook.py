@@ -49,6 +49,32 @@ def _segment(image: Path, audio: Path, out: Path) -> None:
           "-c:a", "aac", "-shortest", str(out)])
 
 
+def _duration(path: Path) -> float:
+    p = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True,
+    )
+    if p.returncode != 0:
+        raise RuntimeError((p.stderr or p.stdout)[-300:])
+    return float(p.stdout.strip())
+
+
+def _stamp(seconds: float) -> str:
+    ms = int(round(seconds * 1000))
+    h, ms = divmod(ms, 3600000)
+    m, ms = divmod(ms, 60000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+def _write_vtt(cues: list[tuple[float, float, str]], out: Path) -> None:
+    lines = ["WEBVTT", ""]
+    for start, end, text in cues:
+        lines += [f"{_stamp(start)} --> {_stamp(end)}", text, ""]
+    out.write_text("\n".join(lines), encoding="utf-8")
+
+
 def _concat(parts: list[Path], out: Path, workdir: Path) -> None:
     lst = workdir / "parts.txt"
     lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
@@ -72,6 +98,7 @@ async def build_audiobook(book_id: str) -> None:
         if not voiced:
             raise RuntimeError("no chapter text to narrate")
         segments = []
+        cue_src: list[tuple[int, str, Path]] = []
         for n, (idx, text) in enumerate(voiced):
             img = d / f"ch{idx}.png"
             if not img.exists():
@@ -83,13 +110,23 @@ async def build_audiobook(book_id: str) -> None:
             seg = work / f"seg{idx}.mp4"
             await asyncio.to_thread(_segment, img, mp3, seg)
             segments.append(seg)
+            cue_src.append((idx, text, seg))
             progress = round((n + 1) / len(voiced) * 100)
             book["audio"] = {"status": "working", "progress": progress}
             emit(book_id, {"type": "audiobook", "status": "working", "progress": progress})
         if not segments:
             raise RuntimeError("no illustrated chapters to stitch")
         await asyncio.to_thread(_concat, segments, d / "audiobook.mp4", work)
-        book["audio"] = {"status": "done", "url": f"/books/{book_id}/audiobook.mp4"}
+        cues = []
+        cursor = 0.0
+        for idx, text, seg in cue_src:
+            dur = await asyncio.to_thread(_duration, seg)
+            snippet = " ".join(text.split())[:140]
+            cues.append((cursor, cursor + dur, f"Chapter {idx + 1}\n{snippet}"))
+            cursor += dur
+        await asyncio.to_thread(_write_vtt, cues, d / "audiobook.vtt")
+        book["audio"] = {"status": "done", "url": f"/books/{book_id}/audiobook.mp4",
+                         "captions": f"/books/{book_id}/audiobook.vtt"}
         emit(book_id, {"type": "audiobook", "status": "done"})
     except Exception as e:
         book["audio"] = {"status": f"error: {type(e).__name__}: {str(e)[:200]}"}

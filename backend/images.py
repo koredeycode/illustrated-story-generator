@@ -7,24 +7,25 @@ from typing import Any
 import httpx
 
 try:
-    from .config import FORGE_URL, IP_WEIGHT, client
+    from .config import CFG, FORGE_URL, IP_WEIGHT, SAMPLER, client
     from .prompts import NEGATIVE_PROMPT
 except ImportError:
-    from config import FORGE_URL, IP_WEIGHT, client
+    from config import CFG, FORGE_URL, IP_WEIGHT, SAMPLER, client
     from prompts import NEGATIVE_PROMPT
 
 
 def render_image(prompt: str, seed: int, scripts: dict | None = None,
-                 steps: int = 28, width: int = 768, height: int = 512) -> bytes:
+                 steps: int = 32, width: int = 768, height: int = 512) -> bytes:
     """Blocking Forge txt2img call — run in a thread. Returns PNG bytes."""
     payload: dict[str, Any] = {
         "prompt": prompt,
         "negative_prompt": NEGATIVE_PROMPT,
         "seed": seed,
         "steps": steps,
+        "cfg_scale": CFG,
         "width": width,
         "height": height,
-        "sampler_name": "Euler a",
+        "sampler_name": SAMPLER,
     }
     if scripts:
         payload["alwayson_scripts"] = scripts

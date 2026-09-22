@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import Icon from "./icons.jsx";
 
 function SceneStatus({ status }) {
   if (status === "done" || status === "preview") return null;
@@ -22,7 +23,9 @@ function SceneStatus({ status }) {
           {label}
         </>
       ) : (
-        <span className="px-4 text-center">⚠️ {String(status)}</span>
+        <span className="flex items-center gap-1.5 px-4 text-center">
+          <Icon name="alert" /> {String(status)}
+        </span>
       )}
     </div>
   );
@@ -75,16 +78,17 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
               onClick={approve}
               disabled={busy}
               aria-busy={busy}
-              className="rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-50"
             >
+              <Icon name="check" />
               {busy ? "Rendering…" : "Approve — full render"}
             </button>
             <button
               onClick={newPreview}
               disabled={busy}
-              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
             >
-              New preview
+              <Icon name="refresh" /> New preview
             </button>
           </div>
         </div>
@@ -118,14 +122,15 @@ export default function ChapterCard({ bookId, chapter, onChanged }) {
             onClick={regen}
             disabled={busy}
             aria-busy={busy}
-            className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-50"
           >
+            <Icon name="refresh" />
             {busy ? "Redrawing…" : "Redraw this picture"}
           </button>
         )}
         {regenError && (
-          <p role="alert" className="text-sm text-red-700">
-            {regenError}
+          <p role="alert" className="flex items-start gap-1.5 text-sm text-red-700">
+            <Icon name="alert" /> {regenError}
           </p>
         )}
       </div>

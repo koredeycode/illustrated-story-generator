@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
+import Icon from "./icons.jsx";
 
 export default function ReaderView({ bookId, onBack }) {
   const [book, setBook] = useState(null);
@@ -74,17 +75,18 @@ export default function ReaderView({ bookId, onBack }) {
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           onClick={onBack}
-          className="rounded-lg px-2 py-1 text-sm font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-ink"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-ink"
         >
-          ← Back to book
+          <Icon name="arrowLeft" /> Back to book
         </button>
         <p aria-live="polite" className="text-sm text-stone-500">
           {label} · {page + 1} of {total}
         </p>
         <button
           onClick={toggleFullscreen}
-          className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+          className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
         >
+          <Icon name="expand" />
           {fullscreen ? "Exit fullscreen" : "Fullscreen"}
         </button>
       </div>
@@ -144,9 +146,10 @@ export default function ReaderView({ bookId, onBack }) {
         <button
           onClick={() => go(page - 1)}
           disabled={page === 0}
-          className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
+          aria-label="Previous page"
+          className="flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
         >
-          ← Previous
+          <Icon name="arrowLeft" /> Previous
         </button>
         <div className="flex gap-1.5" role="tablist" aria-label="Pages">
           {pages.map((p, i) => (
@@ -165,9 +168,10 @@ export default function ReaderView({ bookId, onBack }) {
         <button
           onClick={() => go(page + 1)}
           disabled={page === total - 1}
-          className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
+          aria-label="Next page"
+          className="flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:opacity-40"
         >
-          Next →
+          Next <Icon name="arrowRight" />
         </button>
       </div>
     </div>

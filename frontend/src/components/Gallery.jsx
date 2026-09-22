@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
+import Icon from "./icons.jsx";
 
 function CoverThumb({ id }) {
   const [stage, setStage] = useState(0);
@@ -91,8 +92,8 @@ export default function Gallery({ onOpen }) {
             {b.local ? (
               <CoverThumb id={b.id} />
             ) : (
-              <span aria-hidden="true" className="flex h-12 w-16 items-center justify-center rounded-lg bg-stone-100 text-xl">
-                ☁️
+              <span aria-hidden="true" className="flex h-12 w-16 items-center justify-center rounded-lg bg-stone-100 text-stone-400">
+                <Icon name="cloud" className="h-6 w-6" />
               </span>
             )}
             <div>

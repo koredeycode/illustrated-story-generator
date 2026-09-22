@@ -74,7 +74,7 @@ def sync_book(book_id: str) -> dict[str, str] | None:
         return None
     urls: dict[str, str] = {}
     for f in sorted(book_dir(book_id).glob("*")):
-        if not f.is_file() or f.suffix.lower() not in (".png", ".json", ".mp4"):
+        if not f.is_file() or f.suffix.lower() not in (".png", ".json", ".mp4", ".vtt"):
             continue
         try:
             s3.upload_file(
@@ -119,7 +119,7 @@ def download_book(book_id: str) -> bool:
         resp = s3.list_objects_v2(Bucket=R2_BUCKET, Prefix=f"{PREFIX}{book_id}/")
         for obj in resp.get("Contents", []):
             name = Path(obj["Key"]).name
-            if Path(name).suffix.lower() not in (".png", ".json", ".mp4"):
+            if Path(name).suffix.lower() not in (".png", ".json", ".mp4", ".vtt"):
                 continue
             s3.download_file(R2_BUCKET, obj["Key"], str(d / name))
         return (d / "book.json").exists()

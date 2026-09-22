@@ -3,6 +3,7 @@ import BookView from "./components/BookView.jsx";
 import CreateForm from "./components/CreateForm.jsx";
 import Gallery from "./components/Gallery.jsx";
 import HealthDot from "./components/HealthDot.jsx";
+import Icon from "./components/icons.jsx";
 import ReaderView from "./components/ReaderView.jsx";
 import "./index.css";
 
@@ -26,8 +27,9 @@ export default function App() {
     <div className="min-h-screen px-4 py-6 sm:px-8 sm:py-10">
       <header className="mx-auto mb-6 flex max-w-2xl flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-4xl font-black tracking-tight">
-            📖 Storybook Studio
+          <h1 className="flex items-center gap-2 font-display text-4xl font-black tracking-tight">
+            <Icon name="book" className="h-8 w-8 text-amber-700" />
+            Storybook Studio
           </h1>
           <p className="mt-1 text-sm text-stone-500">
             Illustrated books, drawn on your own GPU.
